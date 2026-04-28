@@ -1,0 +1,9 @@
+package OOP2Project;
+
+class ModernJeep extends PublicVehicle {
+    public ModernJeep(String vehicleId, String plateNumber, int capacity) {
+        super(vehicleId, plateNumber, capacity);
+    }
+    @Override public String getVehicleType() { return "ModernJeep"; 
+    }
+}
