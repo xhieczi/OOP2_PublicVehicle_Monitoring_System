@@ -12,7 +12,6 @@ class AuthenticationService {
         usersByUsername.put(u.username(), u);
         usersById.put(u.userId(), u);
     }
-
     public User login(String username, String password) {
         User u = usersByUsername.get(username);
 
