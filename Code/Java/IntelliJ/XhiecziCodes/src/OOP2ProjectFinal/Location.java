@@ -1,4 +1,4 @@
-package OOP2Project;
+package OOP2ProjectFinal;
 
 class Location {
     private double latitude;

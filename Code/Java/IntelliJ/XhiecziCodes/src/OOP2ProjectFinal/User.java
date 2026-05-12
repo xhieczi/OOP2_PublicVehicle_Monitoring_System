@@ -1,9 +1,6 @@
-package OOP2Project;
+package OOP2ProjectFinal;
 
-import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
-import OOP2Project.*;
 
 abstract class User {
     private final String userId;

@@ -1,4 +1,4 @@
-package OOP2Project;
+package OOP2ProjectFinal;
 
 class ModernJeep extends PublicVehicle {
     public ModernJeep(String vehicleId, String plateNumber, int capacity) {

@@ -1,4 +1,4 @@
-package OOP2Project;
+package OOP2ProjectFinal;
 
 import java.time.Instant;
 import java.util.Objects;

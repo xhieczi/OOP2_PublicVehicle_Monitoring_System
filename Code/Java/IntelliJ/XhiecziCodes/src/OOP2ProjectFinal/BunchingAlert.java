@@ -1,4 +1,4 @@
-package OOP2Project;
+package OOP2ProjectFinal;
 
 class BunchingAlert extends Alert {
     public BunchingAlert(String message) {
@@ -11,8 +11,6 @@ class BunchingAlert extends Alert {
     }
 }
 
-
-
 class OffRouteAlert extends Alert {
     public OffRouteAlert(String message) {
         super("WARN", message);
@@ -23,8 +21,6 @@ class OffRouteAlert extends Alert {
         return "OFF_ROUTE";
     }
 }
-
-
 
 class OvercapacityAlert extends Alert {
     public OvercapacityAlert(String message) {
@@ -37,8 +33,6 @@ class OvercapacityAlert extends Alert {
     }
 }
 
-
-
 class OverspeedAlert extends Alert {
     public OverspeedAlert(String message) {
         super("WARN", message);
@@ -50,8 +44,6 @@ class OverspeedAlert extends Alert {
     }
 }
 
-
-
 class TrafficAlert extends Alert {
     public TrafficAlert(String message) {
         super("INFO", message);
@@ -62,8 +54,6 @@ class TrafficAlert extends Alert {
         return "TRAFFIC";
     }
 }
-
-
 
 class IdleVehicleAlert extends Alert {
     public IdleVehicleAlert(String message) {

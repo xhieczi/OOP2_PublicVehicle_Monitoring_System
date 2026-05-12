@@ -1,4 +1,4 @@
-package OOP2Project;
+package OOP2ProjectFinal;
 
 class Commuter extends User {
     public Commuter(String userId, String name, String username, String password) {

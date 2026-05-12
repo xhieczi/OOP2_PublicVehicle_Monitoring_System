@@ -1,4 +1,4 @@
-package OOP2Project;
+package OOP2ProjectFinal;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,5 +56,14 @@ public class Route {
         if (!stops.isEmpty()) sb.setLength(sb.length() - 4);
         sb.append("]");
         return sb.toString();
+    }
+
+    public boolean stopExists(String stopId) {
+        for (Stop stop : stops) {
+            if (stop.stopId().equalsIgnoreCase(stopId)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
