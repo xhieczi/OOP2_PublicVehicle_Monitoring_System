@@ -97,12 +97,15 @@ public class Main {
         User newUser;
 
         switch (roleChoice) {
-            case "1" -> newUser = new Operator(userId, name, username, password);
-            case "2" -> newUser = new Commuter(userId, name, username, password);
-            default -> {
+            case "1":
+                newUser = new Operator(userId, name, username, password);
+                break;
+            case "2":
+                newUser = new Commuter(userId, name, username, password);
+                break;
+            default:
                 System.out.println("Invalid role choice.");
                 return;
-            }
         }
 
         auth.addUser(newUser);
@@ -155,21 +158,41 @@ public class Main {
             String choice = sc.nextLine().trim();
 
             switch (choice) {
-                case "1" -> addRoute(sc, monitoring);
-                case "2" -> addStop(sc, monitoring);
-                case "3" -> registerVehicle(sc, monitoring);
-                case "4" -> assignVehicleToRoute(sc, monitoring);
-                case "5" -> sendPing(sc, monitoring);
-                case "6" -> viewDashboard(sc, monitoring);
-                case "7" -> viewAlerts(monitoring);
-                case "8" -> viewRouteStops(sc, monitoring);
-                case "9" -> viewAllVehicles(monitoring);
-                case "10" -> searchVehicle(sc, monitoring);
-                case "0" -> {
+                case "1":
+                    addRoute(sc, monitoring);
+                    break;
+                case "2":
+                    addStop(sc, monitoring);
+                    break;
+                case "3":
+                    registerVehicle(sc, monitoring);
+                    break;
+                case "4":
+                    assignVehicleToRoute(sc, monitoring);
+                    break;
+                case "5":
+                    sendPing(sc, monitoring);
+                    break;
+                case "6":
+                    viewDashboard(sc, monitoring);
+                    break;
+                case "7":
+                    viewAlerts(monitoring);
+                    break;
+                case "8":
+                    viewRouteStops(sc, monitoring);
+                    break;
+                case "9":
+                    viewAllVehicles(monitoring);
+                    break;
+                case "10":
+                    searchVehicle(sc, monitoring);
+                    break;
+                case "0":
                     System.out.println("Logged out successfully.");
                     return;
-                }
-                default -> System.out.println("Invalid choice.");
+                default:
+                    System.out.println("Invalid choice.");
             }
         }
     }
@@ -187,15 +210,23 @@ public class Main {
             String choice = sc.nextLine().trim();
 
             switch (choice) {
-                case "1" -> viewDashboard(sc, monitoring);
-                case "2" -> viewAlerts(monitoring);
-                case "3" -> viewRouteStops(sc, monitoring);
-                case "4" -> searchVehicle(sc, monitoring);
-                case "0" -> {
+                case "1":
+                    viewDashboard(sc, monitoring);
+                    break;
+                case "2":
+                    viewAlerts(monitoring);
+                    break;
+                case "3":
+                    viewRouteStops(sc, monitoring);
+                    break;
+                case "4":
+                    searchVehicle(sc, monitoring);
+                    break;
+                case "0":
                     System.out.println("Logged out successfully.");
                     return;
-                }
-                default -> System.out.println("Invalid choice.");
+                default:
+                    System.out.println("Invalid choice.");
             }
         }
     }
@@ -218,7 +249,10 @@ public class Main {
 
     private static void addStop(Scanner sc, MonitoringService monitoring) {
         Route route = pickRoute(sc, monitoring);
-        if (route == null) return;
+
+        if (route == null) {
+            return;
+        }
 
         System.out.print("Stop ID: ");
         String sid = sc.nextLine().trim();
@@ -267,13 +301,18 @@ public class Main {
         PublicVehicle v;
 
         switch (t) {
-            case "1" -> v = new Jeepney(vid, plate, cap);
-            case "2" -> v = new ModernJeep(vid, plate, cap);
-            case "3" -> v = new Bus(vid, plate, cap);
-            default -> {
+            case "1":
+                v = new Jeepney(vid, plate, cap);
+                break;
+            case "2":
+                v = new ModernJeep(vid, plate, cap);
+                break;
+            case "3":
+                v = new Bus(vid, plate, cap);
+                break;
+            default:
                 System.out.println("Invalid vehicle type.");
                 return;
-            }
         }
 
         monitoring.registerVehicle(v);
@@ -281,19 +320,28 @@ public class Main {
     }
 
     private static void assignVehicleToRoute(Scanner sc, MonitoringService monitoring) {
-        PublicVehicle v = pickVehicle(sc, monitoring);
-        if (v == null) return;
+        System.out.print("Vehicle ID: ");
+        String vehicleId = sc.nextLine().trim();
 
-        Route r = pickRoute(sc, monitoring);
-        if (r == null) return;
+        System.out.print("Route ID: ");
+        String routeId = sc.nextLine().trim();
 
-        monitoring.assignVehicleToRoute(v.vehicleId(), r.routeId());
-        System.out.println("Vehicle assigned successfully.");
+        try {
+            monitoring.assignVehicleToRoute(vehicleId, routeId);
+            System.out.println("Vehicle assigned to route successfully.");
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+        }
     }
 
     private static void sendPing(Scanner sc, MonitoringService monitoring) {
-        PublicVehicle v = pickVehicle(sc, monitoring);
-        if (v == null) return;
+        System.out.print("Vehicle ID: ");
+        String vehicleId = sc.nextLine().trim();
+
+        if (!monitoring.vehicleExists(vehicleId)) {
+            System.out.println("Vehicle not found.");
+            return;
+        }
 
         System.out.print("Latitude: ");
         double lat = readDouble(sc);
@@ -301,98 +349,91 @@ public class Main {
         System.out.print("Longitude: ");
         double lon = readDouble(sc);
 
-        System.out.print("Speed (km/h): ");
-        double speed = readNonNegativeDouble(sc);
+        System.out.print("Speed km/h: ");
+        double speed = readDouble(sc);
 
         System.out.print("Passenger count: ");
-        int pax = readNonNegativeInt(sc);
+        int passengerCount = readPositiveInt(sc);
 
-        VehiclePing ping = new VehiclePing(v.vehicleId(), Instant.now(), lat, lon, speed, pax);
+        VehiclePing ping = new VehiclePing(vehicleId, Instant.now(), lat, lon, speed, passengerCount);
         monitoring.receivePing(ping);
 
-        System.out.println("Ping received successfully.");
+        System.out.println("Vehicle ping sent successfully.");
     }
 
     private static void viewDashboard(Scanner sc, MonitoringService monitoring) {
-        Route r = pickRoute(sc, monitoring);
-        if (r == null) return;
+        Route route = pickRoute(sc, monitoring);
 
-        System.out.println("\n=== ROUTE DASHBOARD ===");
-        System.out.println("Route: " + r.routeId() + " - " + r.routeName());
+        if (route == null) {
+            return;
+        }
 
-        List<PublicVehicle> vehicles = monitoring.getVehiclesByRoute(r.routeId());
+        List<PublicVehicle> vehicles = monitoring.getVehiclesByRoute(route.routeId());
+
+        System.out.println("\n--- ROUTE DASHBOARD ---");
+        System.out.println("Route: " + route.routeId() + " - " + route.routeName());
 
         if (vehicles.isEmpty()) {
             System.out.println("No vehicles assigned to this route.");
             return;
         }
 
-        System.out.printf("%-12s %-13s %-12s %-14s %-12s %-15s %-25s %-10s%n",
-                "Vehicle ID", "Type", "Plate", "Passengers", "Speed", "Status", "Nearest Stop", "ETA");
-
         for (PublicVehicle v : vehicles) {
-            if (!v.hasLocation()) {
-                System.out.printf("%-12s %-13s %-12s %-14s %-12s %-15s %-25s %-10s%n",
-                        v.vehicleId(), v.getVehicleType(), v.plateNumber(), "N/A", "N/A", "NO DATA", "No data", "N/A");
-                continue;
-            }
+            Stop nearest = monitoring.getNearestStopOnRoute(v, route);
+            double eta = monitoring.calculateEtaMinutes(v, nearest);
 
-            Stop nearest = monitoring.getNearestStopOnRoute(v, r);
-            double etaMin = monitoring.calculateEtaMinutes(v, nearest);
-
-            System.out.printf("%-12s %-13s %-12s %d/%-12d %-12.1f %-15s %-25s %-10.1f%n",
-                    v.vehicleId(),
-                    v.getVehicleType(),
-                    v.plateNumber(),
-                    v.passengerCount(),
-                    v.capacity(),
-                    v.speedKmh(),
-                    monitoring.getVehicleStatus(v),
-                    nearest != null ? nearest.stopName() : "N/A",
-                    etaMin);
+            System.out.println("--------------------------------");
+            System.out.println("Vehicle ID: " + v.vehicleId());
+            System.out.println("Type: " + v.getVehicleType());
+            System.out.println("Plate: " + v.plateNumber());
+            System.out.println("Status: " + monitoring.getVehicleStatus(v));
+            System.out.println("Speed: " + (v.hasLocation() ? v.speedKmh() + " km/h" : "No data"));
+            System.out.println("Passengers: " + (v.hasLocation() ? v.passengerCount() + "/" + v.capacity() : "No data"));
+            System.out.println("Nearest Stop: " + (nearest != null ? nearest.stopName() : "N/A"));
+            System.out.println("ETA: " + (eta >= 0 ? String.format("%.1f minutes", eta) : "N/A"));
         }
     }
 
     private static void viewAlerts(MonitoringService monitoring) {
-        System.out.println("\n=== ALERTS LOG ===");
+        System.out.println("\n--- ALERTS LOG ---");
 
         List<Alert> alerts = monitoring.getAlerts();
 
         if (alerts.isEmpty()) {
-            System.out.println("No alerts.");
+            System.out.println("No alerts found.");
             return;
         }
 
-        int shown = 0;
-
-        for (Alert a : alerts) {
-            System.out.println(a.displayAlert());
-            shown++;
-
-            if (shown >= 20) break;
+        for (Alert alert : alerts) {
+            System.out.println(alert.displayAlert());
         }
     }
 
     private static void viewRouteStops(Scanner sc, MonitoringService monitoring) {
-        Route r = pickRoute(sc, monitoring);
-        if (r == null) return;
+        Route route = pickRoute(sc, monitoring);
 
-        System.out.println("\n=== ROUTE STOPS ===");
-        System.out.println(r.routeId() + " - " + r.routeName());
-
-        if (r.stops().isEmpty()) {
-            System.out.println("No stops added yet.");
+        if (route == null) {
             return;
         }
 
-        for (Stop s : r.stops()) {
-            System.out.println(s.stopId() + " - " + s.stopName()
-                    + " (" + s.lat() + ", " + s.lon() + ")");
+        System.out.println("\n--- ROUTE STOPS ---");
+        System.out.println("Route: " + route.routeId() + " - " + route.routeName());
+
+        List<Stop> stops = route.stops();
+
+        if (stops.isEmpty()) {
+            System.out.println("No stops found.");
+            return;
+        }
+
+        for (Stop stop : stops) {
+            System.out.println(stop.stopId() + " - " + stop.stopName() +
+                    " (" + stop.lat() + ", " + stop.lon() + ")");
         }
     }
 
     private static void viewAllVehicles(MonitoringService monitoring) {
-        System.out.println("\n=== ALL REGISTERED VEHICLES ===");
+        System.out.println("\n--- ALL VEHICLES ---");
 
         List<PublicVehicle> vehicles = monitoring.getAllVehicles();
 
@@ -402,142 +443,78 @@ public class Main {
         }
 
         for (PublicVehicle v : vehicles) {
-            System.out.println(v.vehicleId()
-                    + " | " + v.getVehicleType()
-                    + " | Plate: " + v.plateNumber()
-                    + " | Capacity: " + v.capacity()
-                    + " | Route: " + (v.routeId() != null ? v.routeId() : "Unassigned"));
+            System.out.println("--------------------------------");
+            System.out.println("Vehicle ID: " + v.vehicleId());
+            System.out.println("Type: " + v.getVehicleType());
+            System.out.println("Plate: " + v.plateNumber());
+            System.out.println("Capacity: " + v.capacity());
+            System.out.println("Route: " + (v.routeId() != null ? v.routeId() : "Unassigned"));
+            System.out.println("Status: " + monitoring.getVehicleStatus(v));
         }
     }
 
     private static void searchVehicle(Scanner sc, MonitoringService monitoring) {
-        System.out.print("Enter Vehicle ID: ");
-        String id = sc.nextLine().trim();
+        System.out.print("Vehicle ID: ");
+        String vehicleId = sc.nextLine().trim();
 
-        PublicVehicle v = monitoring.findVehicleById(id);
+        PublicVehicle v = monitoring.findVehicleById(vehicleId);
 
         if (v == null) {
             System.out.println("Vehicle not found.");
             return;
         }
 
-        System.out.println("\n=== VEHICLE DETAILS ===");
+        System.out.println("\n--- VEHICLE DETAILS ---");
         System.out.println("Vehicle ID: " + v.vehicleId());
         System.out.println("Type: " + v.getVehicleType());
         System.out.println("Plate Number: " + v.plateNumber());
         System.out.println("Capacity: " + v.capacity());
         System.out.println("Assigned Route: " + (v.routeId() != null ? v.routeId() : "Unassigned"));
-
-        if (v.hasLocation()) {
-            System.out.println("Current Location: (" + v.lat() + ", " + v.lon() + ")");
-            System.out.println("Speed: " + v.speedKmh() + " km/h");
-            System.out.println("Passengers: " + v.passengerCount() + "/" + v.capacity());
-            System.out.println("Status: " + monitoring.getVehicleStatus(v));
-        } else {
-            System.out.println("Location: No GPS data yet.");
-        }
+        System.out.println("Location: " + (v.hasLocation() ? "(" + v.lat() + ", " + v.lon() + ")" : "No GPS data yet"));
+        System.out.println("Speed: " + (v.hasLocation() ? v.speedKmh() + " km/h" : "N/A"));
+        System.out.println("Passengers: " + (v.hasLocation() ? v.passengerCount() + "/" + v.capacity() : "N/A"));
+        System.out.println("Status: " + monitoring.getVehicleStatus(v));
     }
 
     private static Route pickRoute(Scanner sc, MonitoringService monitoring) {
+        System.out.print("Route ID: ");
+        String routeId = sc.nextLine().trim();
+
         List<Route> routes = monitoring.getRoutes();
 
-        if (routes.isEmpty()) {
-            System.out.println("No routes available.");
-            return null;
-        }
-
-        System.out.println("\nRoutes:");
-
-        for (int i = 0; i < routes.size(); i++) {
-            Route r = routes.get(i);
-            System.out.println((i + 1) + ") " + r.routeId() + " - " + r.routeName());
-        }
-
-        System.out.print("Choose route #: ");
-        int idx = readInt(sc) - 1;
-
-        if (idx < 0 || idx >= routes.size()) {
-            System.out.println("Invalid route.");
-            return null;
-        }
-
-        return routes.get(idx);
-    }
-
-    private static PublicVehicle pickVehicle(Scanner sc, MonitoringService monitoring) {
-        List<PublicVehicle> vehicles = monitoring.getAllVehicles();
-
-        if (vehicles.isEmpty()) {
-            System.out.println("No vehicles registered.");
-            return null;
-        }
-
-        System.out.println("\nVehicles:");
-
-        for (int i = 0; i < vehicles.size(); i++) {
-            PublicVehicle v = vehicles.get(i);
-            System.out.println((i + 1) + ") " + v.vehicleId()
-                    + " (" + v.getVehicleType() + ") plate=" + v.plateNumber());
-        }
-
-        System.out.print("Choose vehicle #: ");
-        int idx = readInt(sc) - 1;
-
-        if (idx < 0 || idx >= vehicles.size()) {
-            System.out.println("Invalid vehicle.");
-            return null;
-        }
-
-        return vehicles.get(idx);
-    }
-
-    private static int readInt(Scanner sc) {
-        while (true) {
-            try {
-                return Integer.parseInt(sc.nextLine().trim());
-            } catch (Exception e) {
-                System.out.print("Enter a valid integer: ");
+        for (Route route : routes) {
+            if (route.routeId().equalsIgnoreCase(routeId)) {
+                return route;
             }
         }
-    }
 
-    private static int readPositiveInt(Scanner sc) {
-        while (true) {
-            int value = readInt(sc);
-
-            if (value > 0) return value;
-
-            System.out.print("Enter a positive integer: ");
-        }
-    }
-
-    private static int readNonNegativeInt(Scanner sc) {
-        while (true) {
-            int value = readInt(sc);
-
-            if (value >= 0) return value;
-
-            System.out.print("Enter a non-negative integer: ");
-        }
+        System.out.println("Route not found.");
+        return null;
     }
 
     private static double readDouble(Scanner sc) {
         while (true) {
             try {
                 return Double.parseDouble(sc.nextLine().trim());
-            } catch (Exception e) {
-                System.out.print("Enter a valid number: ");
+            } catch (NumberFormatException e) {
+                System.out.print("Invalid number. Enter again: ");
             }
         }
     }
 
-    private static double readNonNegativeDouble(Scanner sc) {
+    private static int readPositiveInt(Scanner sc) {
         while (true) {
-            double value = readDouble(sc);
+            try {
+                int value = Integer.parseInt(sc.nextLine().trim());
 
-            if (value >= 0) return value;
+                if (value > 0) {
+                    return value;
+                }
 
-            System.out.print("Enter a non-negative number: ");
+                System.out.print("Enter a positive number: ");
+            } catch (NumberFormatException e) {
+                System.out.print("Invalid number. Enter again: ");
+            }
         }
     }
 }
