@@ -8,8 +8,8 @@
       <sourceFolder url="file://$MODULE_DIR$/Code/Java/IntelliJ/XhiecziCodes/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/src/Acitivity13" />
     </content>
-    <orderEntry type="inheritedJdk" />
+    <orderEntry type="jdk" jdkName="liberica-21 (2)" jdkType="JavaSDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="lib" level="project" />
+    <orderEntry type="library" exported="" name="lib" level="project" />
   </component>
 </module>

@@ -390,7 +390,7 @@ public class Main {
             System.out.println("Speed: " + (v.hasLocation() ? v.speedKmh() + " km/h" : "No data"));
             System.out.println("Passengers: " + (v.hasLocation() ? v.passengerCount() + "/" + v.capacity() : "No data"));
             System.out.println("Nearest Stop: " + (nearest != null ? nearest.stopName() : "N/A"));
-            System.out.println("ETA: " + (eta >= 0 ? String.format("%.1f minutes", eta) : "N/A"));
+            System.out.println("ETA: " + (eta >= 0 ? Math.round(eta * 10.0) / 10.0 + " minutes" : "N/A"));
         }
     }
 
