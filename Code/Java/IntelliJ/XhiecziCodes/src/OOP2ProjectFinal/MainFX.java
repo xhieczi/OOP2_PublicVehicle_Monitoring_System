@@ -1,5 +1,7 @@
 package OOP2ProjectFinal;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -7,25 +9,23 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
-import java.util.ArrayList;
+import javafx.util.Duration;
 
+import java.io.InputStream;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
-
-import javafx.animation.Timeline;
-import javafx.animation.KeyFrame;
-import javafx.util.Duration;
 import java.util.Random;
-
-
 
 public class MainFX extends Application {
 
-    private boolean darkMode = false;
+    private boolean darkMode = true;
     private Label headerTitle;
     private Label headerUser;
     private VBox headerBox;
@@ -46,12 +46,6 @@ public class MainFX extends Application {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
                     .withZone(ZoneId.systemDefault());
 
-    private final String PRIMARY = "#2563eb";
-    private final String PRIMARY_DARK = "#1e3a8a";
-    private final String DARK = "#0f172a";
-    private final String BG = "#f8fafc";
-    private final String CARD = "white";
-
     @Override
     public void start(Stage stage) {
         mainStage = stage;
@@ -60,41 +54,16 @@ public class MainFX extends Application {
             DataStore.loadAll(auth, monitoring, savedUsers);
 
             if (!auth.usernameExists("operator")) {
-                auth.addUser(new Operator(
-                        "U-001",
-                        "Default Operator",
-                        "operator",
-                        "1234"
-                ));
-
-                savedUsers.add(new DataStore.SavedUser(
-                        "U-001",
-                        "Default Operator",
-                        "operator",
-                        "1234",
-                        "Operator"
-                ));
+                auth.addUser(new Operator("U-001", "Default Operator", "operator", "1234"));
+                savedUsers.add(new DataStore.SavedUser("U-001", "Default Operator", "operator", "1234", "Operator"));
             }
 
             if (!auth.usernameExists("commuter")) {
-                auth.addUser(new Commuter(
-                        "U-002",
-                        "Default Commuter",
-                        "commuter",
-                        "1234"
-                ));
-
-                savedUsers.add(new DataStore.SavedUser(
-                        "U-002",
-                        "Default Commuter",
-                        "commuter",
-                        "1234",
-                        "Commuter"
-                ));
+                auth.addUser(new Commuter("U-002", "Default Commuter", "commuter", "1234"));
+                savedUsers.add(new DataStore.SavedUser("U-002", "Default Commuter", "commuter", "1234", "Commuter"));
             }
 
             DataStore.saveAll(auth, monitoring, savedUsers);
-
         } else {
             seedData();
             DataStore.saveAll(auth, monitoring, savedUsers);
@@ -103,31 +72,58 @@ public class MainFX extends Application {
         showLoginScreen();
     }
 
+    private ImageView loadLogo() {
+        InputStream stream = getClass().getResourceAsStream("/assets/logo.jpeg");
+
+        if (stream == null) {
+            return new ImageView();
+        }
+
+        Image logo = new Image(stream);
+        ImageView logoView = new ImageView(logo);
+
+        logoView.setFitWidth(140);
+        logoView.setFitHeight(140);
+        logoView.setPreserveRatio(false);
+
+        javafx.scene.shape.Circle clip = new javafx.scene.shape.Circle();
+        clip.setCenterX(70);
+        clip.setCenterY(70);
+        clip.setRadius(70);
+
+        logoView.setClip(clip);
+
+        return logoView;
+    }
+
     private void showLoginScreen() {
+        ImageView logoView = loadLogo();
+
         Label title = new Label("Cebu Public Vehicle Monitoring System");
         title.setWrapText(true);
         title.setMaxWidth(520);
         title.setAlignment(Pos.CENTER);
-        title.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
+        title.setStyle("-fx-font-size: 31px; -fx-font-weight: bold; -fx-text-fill: white;");
 
         Label subtitle = new Label("Smart route, vehicle, and alert monitoring");
-        subtitle.setStyle("-fx-font-size: 14px; -fx-text-fill: #64748b;");
+        subtitle.setStyle("-fx-font-size: 14px; -fx-text-fill: #cbd5e1;");
 
         TextField usernameField = input("Username");
 
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText("Password");
-        passwordField.setMaxWidth(320);
-        passwordField.setPrefHeight(40);
+        passwordField.setMaxWidth(340);
+        passwordField.setPrefHeight(44);
         passwordField.setStyle(inputStyle());
 
         Label message = new Label();
-        message.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold;");
+        message.setStyle("-fx-text-fill: #f87171; -fx-font-weight: bold;");
 
         Button loginButton = primaryButton("Login");
         Button registerButton = secondaryButton("Create Account");
-        ToggleButton darkModeToggle = new ToggleButton("Dark Mode");
-        darkModeToggle.setStyle("-fx-background-radius: 12; -fx-font-weight: bold;");
+
+        ToggleButton darkModeToggle = new ToggleButton("Light Mode");
+        darkModeToggle.setStyle("-fx-background-color: #334155; -fx-text-fill: #e2e8f0; -fx-background-radius: 14; -fx-font-weight: bold;");
 
         loginButton.setOnAction(e -> {
             User user = auth.login(usernameField.getText().trim(), passwordField.getText().trim());
@@ -147,32 +143,47 @@ public class MainFX extends Application {
         registerButton.setOnAction(e -> showRegisterScreen());
 
         Label helper = new Label("Default: operator / 1234 or commuter / 1234");
-        helper.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
+        helper.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
 
-        VBox card = new VBox(14, title, subtitle, usernameField, passwordField, loginButton, registerButton, darkModeToggle, helper, message);
+        VBox card = new VBox(
+                14,
+                logoView,
+                title,
+                subtitle,
+                usernameField,
+                passwordField,
+                loginButton,
+                registerButton,
+                darkModeToggle,
+                helper,
+                message
+        );
+
         card.setAlignment(Pos.CENTER);
-        card.setPadding(new Insets(40));
-        card.setMaxWidth(620);
+        card.setPadding(new Insets(42));
+        card.setMaxWidth(640);
         card.setStyle(cardStyle());
 
         StackPane root = new StackPane(card);
-        root.setStyle("-fx-background-color: linear-gradient(to bottom right, #dbeafe, #f8fafc, #eff6ff);");
+        root.setStyle(darkRootStyle());
 
         darkModeToggle.setOnAction(e -> {
             if (darkModeToggle.isSelected()) {
-                darkModeToggle.setText("Light Mode");
-                root.setStyle("-fx-background-color: linear-gradient(to bottom right, #020617, #0f172a, #1e293b);");
-                card.setStyle("-fx-background-color: #111827; -fx-background-radius: 24; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.45), 25, 0, 0, 8);");
-                title.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: white;");
-                subtitle.setStyle("-fx-font-size: 14px; -fx-text-fill: #cbd5e1;");
-                helper.setStyle("-fx-font-size: 12px; -fx-text-fill: #cbd5e1;");
-            } else {
+                darkMode = false;
                 darkModeToggle.setText("Dark Mode");
-                root.setStyle("-fx-background-color: linear-gradient(to bottom right, #dbeafe, #f8fafc, #eff6ff);");
-                card.setStyle(cardStyle());
-                title.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
-                subtitle.setStyle("-fx-font-size: 14px; -fx-text-fill: #64748b;");
+                root.setStyle("-fx-background-color: linear-gradient(to bottom right, #dbeafe, #f8fafc, #e0f2fe);");
+                card.setStyle("-fx-background-color: white; -fx-background-radius: 24; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.18), 28, 0, 0, 8);");
+                title.setStyle("-fx-font-size: 31px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
+                subtitle.setStyle("-fx-font-size: 14px; -fx-text-fill: #475569;");
                 helper.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
+            } else {
+                darkMode = true;
+                darkModeToggle.setText("Light Mode");
+                root.setStyle(darkRootStyle());
+                card.setStyle(cardStyle());
+                title.setStyle("-fx-font-size: 31px; -fx-font-weight: bold; -fx-text-fill: white;");
+                subtitle.setStyle("-fx-font-size: 14px; -fx-text-fill: #cbd5e1;");
+                helper.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
             }
         });
 
@@ -190,21 +201,21 @@ public class MainFX extends Application {
 
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText("Password");
-        passwordField.setMaxWidth(320);
-        passwordField.setPrefHeight(40);
+        passwordField.setMaxWidth(340);
+        passwordField.setPrefHeight(44);
         passwordField.setStyle(inputStyle());
 
         PasswordField confirmField = new PasswordField();
         confirmField.setPromptText("Confirm Password");
-        confirmField.setMaxWidth(320);
-        confirmField.setPrefHeight(40);
+        confirmField.setMaxWidth(340);
+        confirmField.setPrefHeight(44);
         confirmField.setStyle(inputStyle());
 
         ComboBox<String> roleBox = new ComboBox<>();
         roleBox.getItems().addAll("Operator", "Commuter");
         roleBox.setPromptText("Select Role");
-        roleBox.setMaxWidth(320);
-        roleBox.setPrefHeight(40);
+        roleBox.setMaxWidth(340);
+        roleBox.setPrefHeight(44);
         roleBox.setStyle(inputStyle());
 
         Label message = new Label();
@@ -257,14 +268,14 @@ public class MainFX extends Application {
 
         backButton.setOnAction(e -> showLoginScreen());
 
-        VBox card = new VBox(12, title, userIdField, nameField, usernameField, passwordField, confirmField, roleBox, createButton, backButton, message);
+        VBox card = new VBox(13, title, userIdField, nameField, usernameField, passwordField, confirmField, roleBox, createButton, backButton, message);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(40));
-        card.setMaxWidth(500);
+        card.setMaxWidth(540);
         card.setStyle(cardStyle());
 
         StackPane root = new StackPane(card);
-        root.setStyle("-fx-background-color: linear-gradient(to bottom right, #dbeafe, #f8fafc, #eff6ff);");
+        root.setStyle(darkRootStyle());
 
         mainStage.setScene(new Scene(root, 1050, 720));
     }
@@ -305,13 +316,14 @@ public class MainFX extends Application {
         dashboardRoot = new BorderPane();
 
         headerTitle = new Label(title);
-        headerTitle.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+        headerTitle.setStyle("-fx-font-size: 25px; -fx-font-weight: bold; -fx-text-fill: white;");
 
         headerUser = new Label("Logged in as: " + username);
-        headerUser.setStyle("-fx-font-size: 13px;");
+        headerUser.setStyle("-fx-font-size: 13px; -fx-text-fill: #cbd5e1;");
 
         ToggleButton themeToggle = new ToggleButton(darkMode ? "Light Mode" : "Dark Mode");
         themeToggle.setPrefWidth(120);
+        themeToggle.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-background-radius: 12; -fx-font-weight: bold;");
         themeToggle.setOnAction(e -> {
             darkMode = !darkMode;
             applyDashboardTheme();
@@ -330,7 +342,7 @@ public class MainFX extends Application {
 
         sidebar = new VBox(10);
         sidebar.setPadding(new Insets(18));
-        sidebar.setPrefWidth(240);
+        sidebar.setPrefWidth(245);
 
         contentArea = new VBox(15);
         contentArea.setPadding(new Insets(28));
@@ -349,17 +361,17 @@ public class MainFX extends Application {
 
         if (darkMode) {
             dashboardRoot.setStyle("-fx-background-color: #020617;");
-            headerBox.setStyle("-fx-background-color: linear-gradient(to right, #020617, #1e293b);");
-            sidebar.setStyle("-fx-background-color: #020617;");
-            contentArea.setStyle("-fx-background-color: #0f172a;");
-            headerTitle.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;");
+            headerBox.setStyle("-fx-background-color: linear-gradient(to right, #0f172a, #1e293b, #312e81);");
+            sidebar.setStyle("-fx-background-color: #020617; -fx-border-color: #1e293b; -fx-border-width: 0 1 0 0;");
+            contentArea.setStyle("-fx-background-color: linear-gradient(to bottom right, #020617, #0f172a);");
+            headerTitle.setStyle("-fx-font-size: 25px; -fx-font-weight: bold; -fx-text-fill: white;");
             headerUser.setStyle("-fx-font-size: 13px; -fx-text-fill: #cbd5e1;");
         } else {
             dashboardRoot.setStyle("-fx-background-color: #f8fafc;");
             headerBox.setStyle("-fx-background-color: linear-gradient(to right, #1e3a8a, #2563eb);");
             sidebar.setStyle("-fx-background-color: #0f172a;");
-            contentArea.setStyle("-fx-background-color: #f8fafc;");
-            headerTitle.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;");
+            contentArea.setStyle("-fx-background-color: #e2e8f0;");
+            headerTitle.setStyle("-fx-font-size: 25px; -fx-font-weight: bold; -fx-text-fill: white;");
             headerUser.setStyle("-fx-font-size: 13px; -fx-text-fill: #dbeafe;");
         }
     }
@@ -367,7 +379,7 @@ public class MainFX extends Application {
     private void addSidebarButton(String text, Runnable action) {
         Button button = new Button(text);
         button.setMaxWidth(Double.MAX_VALUE);
-        button.setPrefHeight(42);
+        button.setPrefHeight(44);
         button.setAlignment(Pos.CENTER_LEFT);
         button.setStyle(sidebarButtonStyle());
         button.setOnAction(e -> action.run());
@@ -380,8 +392,8 @@ public class MainFX extends Application {
 
         Button logout = new Button("Logout");
         logout.setMaxWidth(Double.MAX_VALUE);
-        logout.setPrefHeight(42);
-        logout.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;");
+        logout.setPrefHeight(44);
+        logout.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 14;");
         logout.setOnAction(e -> {
             auth.logout();
             showLoginScreen();
@@ -395,7 +407,7 @@ public class MainFX extends Application {
 
         Label titleLabel = pageTitle(title);
         Label subtitleLabel = new Label(subtitle);
-        subtitleLabel.setStyle("-fx-font-size: 15px; -fx-text-fill: #475569;");
+        subtitleLabel.setStyle(darkMode ? "-fx-font-size: 15px; -fx-text-fill: #cbd5e1;" : "-fx-font-size: 15px; -fx-text-fill: #475569;");
 
         HBox stats = new HBox(15,
                 statCard("Routes", String.valueOf(monitoring.getRoutes().size())),
@@ -408,14 +420,14 @@ public class MainFX extends Application {
 
     private VBox statCard(String label, String value) {
         Label valueLabel = new Label(value);
-        valueLabel.setStyle("-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: #2563eb;");
+        valueLabel.setStyle("-fx-font-size: 31px; -fx-font-weight: bold; -fx-text-fill: #60a5fa;");
 
         Label labelText = new Label(label);
-        labelText.setStyle("-fx-font-size: 14px; -fx-text-fill: #64748b;");
+        labelText.setStyle(darkMode ? "-fx-font-size: 14px; -fx-text-fill: #cbd5e1;" : "-fx-font-size: 14px; -fx-text-fill: #64748b;");
 
         VBox box = new VBox(5, valueLabel, labelText);
         box.setPadding(new Insets(22));
-        box.setPrefWidth(180);
+        box.setPrefWidth(185);
         box.setStyle(cardStyle());
         return box;
     }
@@ -428,7 +440,7 @@ public class MainFX extends Application {
         TextArea output = new TextArea(text);
         output.setEditable(false);
         output.setWrapText(false);
-        output.setStyle("-fx-font-family: monospace; -fx-font-size: 13px; -fx-background-radius: 12;");
+        output.setStyle(textAreaStyle());
         VBox.setVgrow(output, Priority.ALWAYS);
 
         VBox card = card(titleLabel, output);
@@ -632,10 +644,7 @@ public class MainFX extends Application {
             liveSimulation.stop();
         }
 
-        liveSimulation = new Timeline(
-                new KeyFrame(Duration.seconds(3), e -> simulateVehiclePing())
-        );
-
+        liveSimulation = new Timeline(new KeyFrame(Duration.seconds(3), e -> simulateVehiclePing()));
         liveSimulation.setCycleCount(Timeline.INDEFINITE);
         liveSimulation.play();
 
@@ -654,9 +663,7 @@ public class MainFX extends Application {
     private void simulateVehiclePing() {
         List<PublicVehicle> vehicles = monitoring.getAllVehicles();
 
-        if (vehicles.isEmpty()) {
-            return;
-        }
+        if (vehicles.isEmpty()) return;
 
         for (PublicVehicle vehicle : vehicles) {
             double baseLat = vehicle.hasLocation() ? vehicle.lat() : 10.3270;
@@ -668,15 +675,7 @@ public class MainFX extends Application {
             double speed = 10 + random.nextDouble() * 50;
             int passengers = random.nextInt(vehicle.capacity() + 6);
 
-            VehiclePing ping = new VehiclePing(
-                    vehicle.vehicleId(),
-                    Instant.now(),
-                    newLat,
-                    newLon,
-                    speed,
-                    passengers
-            );
-
+            VehiclePing ping = new VehiclePing(vehicle.vehicleId(), Instant.now(), newLat, newLon, speed, passengers);
             monitoring.receivePing(ping);
         }
 
@@ -692,7 +691,7 @@ public class MainFX extends Application {
         routeBox.getItems().addAll(monitoring.getRoutes());
         routeBox.setPromptText("Select Route");
         routeBox.setMaxWidth(350);
-        routeBox.setPrefHeight(40);
+        routeBox.setPrefHeight(44);
         routeBox.setStyle(inputStyle());
 
         TextField stopId = input("Stop ID");
@@ -748,7 +747,7 @@ public class MainFX extends Application {
         typeBox.getItems().addAll("Jeepney", "Modern Jeep", "Bus");
         typeBox.setPromptText("Vehicle Type");
         typeBox.setMaxWidth(350);
-        typeBox.setPrefHeight(40);
+        typeBox.setPrefHeight(44);
         typeBox.setStyle(inputStyle());
 
         TextField vehicleId = input("Vehicle ID");
@@ -816,14 +815,14 @@ public class MainFX extends Application {
         vehicleBox.getItems().addAll(monitoring.getAllVehicles());
         vehicleBox.setPromptText("Select Vehicle");
         vehicleBox.setMaxWidth(350);
-        vehicleBox.setPrefHeight(40);
+        vehicleBox.setPrefHeight(44);
         vehicleBox.setStyle(inputStyle());
 
         ComboBox<Route> routeBox = new ComboBox<>();
         routeBox.getItems().addAll(monitoring.getRoutes());
         routeBox.setPromptText("Select Route");
         routeBox.setMaxWidth(350);
-        routeBox.setPrefHeight(40);
+        routeBox.setPrefHeight(44);
         routeBox.setStyle(inputStyle());
 
         Label message = new Label();
@@ -855,7 +854,7 @@ public class MainFX extends Application {
         vehicleBox.getItems().addAll(monitoring.getAllVehicles());
         vehicleBox.setPromptText("Select Vehicle");
         vehicleBox.setMaxWidth(350);
-        vehicleBox.setPrefHeight(40);
+        vehicleBox.setPrefHeight(44);
         vehicleBox.setStyle(inputStyle());
 
         TextField lat = input("Latitude");
@@ -920,7 +919,7 @@ public class MainFX extends Application {
         TextArea output = new TextArea();
         output.setEditable(false);
         output.setWrapText(true);
-        output.setStyle("-fx-background-radius: 12; -fx-font-size: 14px;");
+        output.setStyle(textAreaStyle());
 
         search.setOnAction(e -> {
             PublicVehicle v = monitoring.findVehicleById(vehicleId.getText().trim());
@@ -982,9 +981,9 @@ public class MainFX extends Application {
         Label label = new Label(text);
 
         if (darkMode) {
-            label.setStyle("-fx-font-size: 25px; -fx-font-weight: bold; -fx-text-fill: white;");
+            label.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: white;");
         } else {
-            label.setStyle("-fx-font-size: 25px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
+            label.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
         }
 
         return label;
@@ -994,55 +993,107 @@ public class MainFX extends Application {
         TextField field = new TextField();
         field.setPromptText(prompt);
         field.setMaxWidth(350);
-        field.setPrefHeight(40);
+        field.setPrefHeight(44);
         field.setStyle(inputStyle());
         return field;
     }
 
     private Button primaryButton(String text) {
         Button button = new Button(text);
-        button.setPrefHeight(40);
-        button.setMinWidth(170);
-        button.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;");
+        button.setPrefHeight(43);
+        button.setMinWidth(180);
+        button.setStyle("-fx-background-color: linear-gradient(to right, #2563eb, #7c3aed);" +
+                "-fx-text-fill: white;" +
+                "-fx-font-weight: bold;" +
+                "-fx-background-radius: 14;" +
+                "-fx-cursor: hand;");
         return button;
     }
 
     private Button secondaryButton(String text) {
         Button button = new Button(text);
-        button.setPrefHeight(40);
-        button.setMinWidth(170);
-        button.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #1e293b; -fx-font-weight: bold; -fx-background-radius: 12;");
+        button.setPrefHeight(43);
+        button.setMinWidth(180);
+        button.setStyle("-fx-background-color: #334155;" +
+                "-fx-text-fill: #e2e8f0;" +
+                "-fx-font-weight: bold;" +
+                "-fx-background-radius: 14;" +
+                "-fx-cursor: hand;");
         return button;
     }
 
     private void styleTable(TableView<?> table) {
-        table.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e2e8f0; -fx-border-radius: 14;");
+        if (darkMode) {
+            table.setStyle("-fx-background-color: #0f172a; -fx-background-radius: 14; -fx-border-color: #334155; -fx-border-radius: 14; -fx-text-fill: white;");
+        } else {
+            table.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #cbd5e1; -fx-border-radius: 14;");
+        }
+
         table.setPrefHeight(520);
     }
 
     private String inputStyle() {
-        return "-fx-background-color: white; -fx-border-color: #cbd5e1; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 8;";
+        if (darkMode) {
+            return "-fx-background-color: #1e293b;" +
+                    "-fx-text-fill: white;" +
+                    "-fx-prompt-text-fill: #94a3b8;" +
+                    "-fx-border-color: #334155;" +
+                    "-fx-border-radius: 12;" +
+                    "-fx-background-radius: 12;" +
+                    "-fx-padding: 10;";
+        }
+
+        return "-fx-background-color: white; -fx-text-fill: #0f172a; -fx-prompt-text-fill: #64748b; -fx-border-color: #cbd5e1; -fx-border-radius: 12; -fx-background-radius: 12; -fx-padding: 10;";
     }
 
     private String cardStyle() {
         if (darkMode) {
-            return "-fx-background-color: #1e293b; -fx-background-radius: 20; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 22, 0, 0, 6);";
+            return "-fx-background-color: rgba(15, 23, 42, 0.94);" +
+                    "-fx-background-radius: 24;" +
+                    "-fx-border-color: rgba(148, 163, 184, 0.28);" +
+                    "-fx-border-radius: 24;" +
+                    "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.45), 30, 0, 0, 10);";
         }
 
-        return "-fx-background-color: white; -fx-background-radius: 20; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.13), 22, 0, 0, 6);";
+        return "-fx-background-color: white; -fx-background-radius: 22; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.15), 24, 0, 0, 7);";
     }
 
     private String sidebarButtonStyle() {
-        return "-fx-background-color: transparent; -fx-text-fill: #e2e8f0; -fx-font-weight: bold; -fx-font-size: 13px; -fx-background-radius: 12; -fx-padding: 10 14;";
+        return "-fx-background-color: transparent;" +
+                "-fx-text-fill: #e2e8f0;" +
+                "-fx-font-weight: bold;" +
+                "-fx-font-size: 13px;" +
+                "-fx-background-radius: 14;" +
+                "-fx-padding: 10 14;" +
+                "-fx-cursor: hand;";
+    }
+
+    private String textAreaStyle() {
+        if (darkMode) {
+            return "-fx-control-inner-background: #0f172a;" +
+                    "-fx-background-color: #0f172a;" +
+                    "-fx-text-fill: white;" +
+                    "-fx-prompt-text-fill: #94a3b8;" +
+                    "-fx-border-color: #334155;" +
+                    "-fx-border-radius: 12;" +
+                    "-fx-background-radius: 12;" +
+                    "-fx-font-size: 14px;";
+        }
+
+        return "-fx-background-radius: 12; -fx-font-size: 14px;";
+    }
+
+    private String darkRootStyle() {
+        return "-fx-background-color: radial-gradient(center 50% 15%, radius 80%, #1e3a8a, transparent), linear-gradient(to bottom right, #020617, #0f172a, #1e293b);";
     }
 
     private void showSuccess(Label label, String text) {
-        label.setStyle("-fx-text-fill: #16a34a; -fx-font-weight: bold;");
+        label.setStyle("-fx-text-fill: #22c55e; -fx-font-weight: bold;");
         label.setText(text);
     }
 
     private void showError(Label label, String text) {
-        label.setStyle("-fx-text-fill: #dc2626; -fx-font-weight: bold;");
+        label.setStyle("-fx-text-fill: #f87171; -fx-font-weight: bold;");
         label.setText(text);
     }
 
