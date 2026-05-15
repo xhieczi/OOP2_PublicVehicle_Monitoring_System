@@ -5,10 +5,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Represents a public vehicle route in Cebu City.
- * Example: "R-04L" = IT Park → Ayala → Fuente → Colon
- */
 public class Route {
 
     private final String routeId;
@@ -21,41 +17,28 @@ public class Route {
         this.stops = new ArrayList<>();
     }
 
-    public String routeId() { return routeId; }
-    public String routeName() { return routeName; }
+    public String routeId() {
+        return routeId;
+    }
 
-    /**
-     * Returns an unmodifiable view of stops to prevent external modification.
-     */
+    public String routeName() {
+        return routeName;
+    }
+
     public List<Stop> stops() {
         return Collections.unmodifiableList(stops);
     }
 
-    /**
-     * Adds a stop to this route in order.
-     */
     public void addStop(Stop stop) {
-        if (stop == null) throw new IllegalArgumentException("Stop cannot be null");
+        if (stop == null) {
+            throw new IllegalArgumentException("Stop cannot be null");
+        }
+
         stops.add(stop);
     }
 
-    /**
-     * Returns number of stops on this route.
-     */
     public int stopCount() {
         return stops.size();
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Route[").append(routeId).append(": ").append(routeName).append(", Stops: ");
-        for (Stop s : stops) {
-            sb.append(s.stopName()).append(" -> ");
-        }
-        if (!stops.isEmpty()) sb.setLength(sb.length() - 4);
-        sb.append("]");
-        return sb.toString();
     }
 
     public boolean stopExists(String stopId) {
@@ -64,6 +47,32 @@ public class Route {
                 return true;
             }
         }
+
         return false;
+    }
+
+    public boolean removeStop(String stopId) {
+        return stops.removeIf(stop -> stop.stopId().equalsIgnoreCase(stopId));
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append(routeId)
+                .append(" - ")
+                .append(routeName);
+
+        if (!stops.isEmpty()) {
+            sb.append(" | Stops: ");
+
+            for (Stop stop : stops) {
+                sb.append(stop.stopName()).append(" -> ");
+            }
+
+            sb.setLength(sb.length() - 4);
+        }
+
+        return sb.toString();
     }
 }

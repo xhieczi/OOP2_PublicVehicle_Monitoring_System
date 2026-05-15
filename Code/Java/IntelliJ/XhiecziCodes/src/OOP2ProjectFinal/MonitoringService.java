@@ -234,4 +234,52 @@ class MonitoringService {
 
         return R * c;
     }
+
+
+    public boolean removeRoute(String routeId) {
+        if (!routes.containsKey(routeId)) {
+            return false;
+        }
+
+        routes.remove(routeId);
+
+        for (PublicVehicle vehicle : vehicles.values()) {
+            if (routeId.equals(vehicle.routeId())) {
+                vehicle.setRouteId(null);
+            }
+        }
+
+        return true;
+    }
+
+    public boolean removeVehicle(String vehicleId) {
+        return vehicles.remove(vehicleId) != null;
+    }
+
+    public boolean removeStopFromRoute(String routeId, String stopId) {
+        Route route = routes.get(routeId);
+
+        if (route == null) {
+            return false;
+        }
+
+        return route.removeStop(stopId);
+    }
+
+    public void clearAlerts() {
+        alerts.clear();
+    }
+
+    public List<Alert> getAlertsBySeverity(String severity) {
+        List<Alert> filtered = new ArrayList<>();
+
+        for (Alert alert : alerts) {
+            if (alert.severity().equalsIgnoreCase(severity)) {
+                filtered.add(alert);
+            }
+        }
+
+        filtered.sort((a, b) -> b.timestamp().compareTo(a.timestamp()));
+        return filtered;
+    }
 }

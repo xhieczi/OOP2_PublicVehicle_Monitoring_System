@@ -39,4 +39,32 @@ class AuthenticationService {
     public boolean userIdExists(String userId) {
         return usersById.containsKey(userId);
     }
+
+    public boolean updateUserProfile(User user, String newName, String newUsername) {
+        if (user == null) return false;
+
+        String oldUsername = user.username();
+
+        if (!oldUsername.equalsIgnoreCase(newUsername) && usersByUsername.containsKey(newUsername)) {
+            return false;
+        }
+
+        usersByUsername.remove(oldUsername);
+        user.setName(newName);
+        user.setUsername(newUsername);
+        usersByUsername.put(newUsername, user);
+
+        return true;
+    }
+
+    public boolean changePassword(User user, String currentPassword, String newPassword) {
+        if (user == null) return false;
+
+        if (!user.checkPassword(currentPassword)) {
+            return false;
+        }
+
+        user.setPassword(newPassword);
+        return true;
+    }
 }

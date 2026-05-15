@@ -16,6 +16,11 @@ class Stop {
         this.lon = lon;
     }
 
+    @Override
+    public String toString() {
+        return stopId + " - " + stopName;
+    }
+
     public String stopId() { return stopId; }
     public String stopName() { return stopName; }
     public double lat() { return lat; }

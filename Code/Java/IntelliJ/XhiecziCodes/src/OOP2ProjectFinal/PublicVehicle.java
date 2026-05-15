@@ -41,4 +41,9 @@ abstract class PublicVehicle {
     }
 
     public abstract String getVehicleType();
+
+    @Override
+    public String toString() {
+        return getVehicleType() + " - " + vehicleId + " (" + plateNumber + ")";
+    }
 }
