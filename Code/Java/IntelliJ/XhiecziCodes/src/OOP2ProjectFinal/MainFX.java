@@ -2106,7 +2106,7 @@ public class MainFX extends Application {
                 )
         );
     }
-
+//this is for the input style
     private String inputStyle() {
         if (darkMode) {
             return
