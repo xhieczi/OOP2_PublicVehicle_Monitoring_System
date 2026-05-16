@@ -33,6 +33,8 @@ public class MainFX extends Application {
     private final List<DataStore.SavedUser> savedUsers = new ArrayList<>();
     private User currentUser;
 
+    private final List<String> activityLogs = new ArrayList<>();
+
     private Timeline liveSimulation;
     private final Random random = new Random();
 
@@ -290,6 +292,8 @@ public class MainFX extends Application {
         addSidebarButton("■ Stop Simulation", this::stopLiveSimulation);
         addSidebarButton("🚨 Alerts", this::showAlertsTable);
         addSidebarButton("🔔 Notifications", this::showNotificationCenterPanel);
+
+        addSidebarButton("🧾 Activity Log", this::showActivityLogPanel);
 
         addSidebarSection("ACCOUNT");
         addSidebarButton("👤 Profile", this::showProfilePanel);
@@ -788,6 +792,41 @@ public class MainFX extends Application {
         button.setOnAction(e -> action.run());
         sidebar.getChildren().add(button);
     }
+
+    private void addActivityLog(String action) {
+        String user = currentUser != null ? currentUser.name() : "System";
+        String time = timeFormatter.format(Instant.now());
+
+        activityLogs.add("[" + time + "] " + user + " - " + action);
+    }
+
+    private void showActivityLogPanel() {
+        contentArea.getChildren().clear();
+
+        Label title = pageTitle("Activity Log");
+
+        TextArea output = new TextArea();
+        output.setEditable(false);
+        output.setWrapText(true);
+        output.setStyle(textAreaStyle());
+
+        if (activityLogs.isEmpty()) {
+            output.setText("No activities recorded yet.");
+        } else {
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = activityLogs.size() - 1; i >= 0; i--) {
+                sb.append(activityLogs.get(i)).append("\n");
+            }
+
+            output.setText(sb.toString());
+        }
+
+        Button refresh = primaryButton("Refresh Logs");
+        refresh.setOnAction(e -> showActivityLogPanel());
+
+        contentArea.getChildren().add(card(title, refresh, output));
+    }
     private void addSidebarSection(String text) {
         Label section = new Label(text);
 
@@ -1225,6 +1264,7 @@ public class MainFX extends Application {
 
             monitoring.assignVehicleToRoute(vehicle.vehicleId(), route.routeId());
             DataStore.saveAll(auth, monitoring, savedUsers);
+            addActivityLog("Assigned vehicle " + vehicle.vehicleId() + " to route " + route.routeId());
             showSuccess(message, "Vehicle assigned successfully.");
         });
 
@@ -1410,6 +1450,7 @@ public class MainFX extends Application {
 
                 monitoring.receivePing(ping);
                 DataStore.saveAll(auth, monitoring, savedUsers);
+                addActivityLog("Sent ping to vehicle: " + v.vehicleId());
 
                 lat.clear();
                 lon.clear();
@@ -1905,6 +1946,7 @@ public class MainFX extends Application {
         liveSimulation = new Timeline(new KeyFrame(Duration.seconds(3), e -> simulateVehiclePing()));
         liveSimulation.setCycleCount(Timeline.INDEFINITE);
         liveSimulation.play();
+        addActivityLog("Started live simulation.");
 
         showWelcomePanel("Live Simulation Started", "Vehicle pings will update automatically every 3 seconds.");
     }
@@ -1914,6 +1956,7 @@ public class MainFX extends Application {
             liveSimulation.stop();
             liveSimulation = null;
         }
+        addActivityLog("Stopped live simulation.");
 
         showWelcomePanel("Live Simulation Stopped", "Automatic vehicle updates have been paused.");
     }
