@@ -1,78 +1,65 @@
 package OOP2ProjectFinal;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 public class Route {
 
     private final String routeId;
     private final String routeName;
-    private final List<Stop> stops;
+    private final List<Stop> stops = new ArrayList<>();
 
     public Route(String routeId, String routeName) {
-        this.routeId = Objects.requireNonNull(routeId, "Route ID cannot be null");
-        this.routeName = Objects.requireNonNull(routeName, "Route name cannot be null");
-        this.stops = new ArrayList<>();
+        this.routeId = routeId;
+        this.routeName = routeName;
     }
 
-    public String routeId() {
-        return routeId;
-    }
+    public String routeId() { return routeId; }
+    public String routeName() { return routeName; }
 
-    public String routeName() {
-        return routeName;
-    }
-
-    public List<Stop> stops() {
-        return Collections.unmodifiableList(stops);
-    }
+    public List<Stop> stops() { return new ArrayList<>(stops); }
 
     public void addStop(Stop stop) {
-        if (stop == null) {
-            throw new IllegalArgumentException("Stop cannot be null");
-        }
-
-        stops.add(stop);
-    }
-
-    public int stopCount() {
-        return stops.size();
+        if (stop != null) stops.add(stop);
     }
 
     public boolean stopExists(String stopId) {
-        for (Stop stop : stops) {
-            if (stop.stopId().equalsIgnoreCase(stopId)) {
-                return true;
-            }
-        }
-
-        return false;
+        return stops.stream().anyMatch(s -> s.stopId().equalsIgnoreCase(stopId));
     }
 
     public boolean removeStop(String stopId) {
-        return stops.removeIf(stop -> stop.stopId().equalsIgnoreCase(stopId));
+        return stops.removeIf(s -> s.stopId().equalsIgnoreCase(stopId));
+    }
+
+    // Used by MonitoringService
+    public Stop getNearestStop(double lat, double lon) {
+        if (stops.isEmpty()) return null;
+
+        Stop nearest = null;
+        double minDist = Double.MAX_VALUE;
+
+        for (Stop s : stops) {
+            double dist = haversine(lat, lon, s.lat(), s.lon());
+            if (dist < minDist) {
+                minDist = dist;
+                nearest = s;
+            }
+        }
+        return nearest;
+    }
+
+    private double haversine(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6371;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                   Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                   Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-
-        sb.append(routeId)
-                .append(" - ")
-                .append(routeName);
-
-        if (!stops.isEmpty()) {
-            sb.append(" | Stops: ");
-
-            for (Stop stop : stops) {
-                sb.append(stop.stopName()).append(" -> ");
-            }
-
-            sb.setLength(sb.length() - 4);
-        }
-
-        return sb.toString();
+        return routeId + " - " + routeName;
     }
 }
