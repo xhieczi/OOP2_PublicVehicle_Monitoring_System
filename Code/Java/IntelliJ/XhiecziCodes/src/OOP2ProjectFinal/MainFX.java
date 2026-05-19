@@ -20,18 +20,25 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.web.WebView;
+
 import javafx.stage.Stage;
 import javafx.util.Duration;
-
-import netscape.javascript.JSObject;
+import javafx.scene.image.Image;
+import java.util.Objects;
 
 import java.io.InputStream;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.shape.Line;
 
+import javafx.scene.web.WebView;
+import javafx.animation.Timeline;
+import javafx.animation.KeyFrame;
+import javafx.util.Duration;
 
 public class MainFX extends Application {
 
@@ -63,7 +70,9 @@ public class MainFX extends Application {
     private Timeline liveSimulation;
     private Timeline mapAutoRefresh;
     private Stage mainStage;
-    private WebView liveMapWebView;
+    private Canvas liveMapCanvas;
+    private Image cebuMapImage;
+    private ComboBox<String> currentMapRouteFilter;
     private boolean isRealGPSMode = false;
 
     private BorderPane dashboardRoot;
@@ -239,7 +248,7 @@ public class MainFX extends Application {
         gpsModeToggle.setOnAction(e -> {
             isRealGPSMode = gpsModeToggle.isSelected();
             addActivityLog(isRealGPSMode ? "Real GPS tracking enabled" : "Real GPS tracking disabled");
-            if (liveMapWebView != null) refreshLiveMap();
+            if (liveMapCanvas != null) refreshLiveMap();
         });
 
         registerBtn.setOnAction(e -> showRegisterScreen());
@@ -597,158 +606,247 @@ public class MainFX extends Application {
     }
 
     private void showLiveMapPanel() {
-    contentArea.getChildren().clear();
+        contentArea.getChildren().clear();
 
-    Label title = new Label("Live Vehicle Map");
-    title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: " + TEXT_PRIMARY + ";");
-    
-    Label subtitle = new Label("Real-time tracking • Cebu City");
-    subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: " + TEXT_SECONDARY + ";");
+        Label title = new Label("Live Vehicle Map");
+        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: " + TEXT_PRIMARY + ";");
 
-    ComboBox<String> routeFilter = new ComboBox<>();
-    routeFilter.getItems().add("All Routes");
-    monitoring.getRoutes().forEach(r -> routeFilter.getItems().add(r.routeId() + " – " + r.routeName()));
-    routeFilter.setValue("All Routes");
-    routeFilter.setMaxWidth(320);
-    routeFilter.setPrefHeight(40);
-    styleComboBox(routeFilter);
+        Label subtitle = new Label("Embedded live map • Cebu City");
+        subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: " + TEXT_SECONDARY + ";");
 
-    ToggleButton gpsToggle = new ToggleButton("📍 Real GPS Mode");
-    gpsToggle.setStyle("-fx-background-color: " + CARD_BG + "; -fx-text-fill: " + TEXT_SECONDARY + "; -fx-background-radius: 20; -fx-padding: 8 16;");
-    gpsToggle.setSelected(isRealGPSMode);
+        ComboBox<String> routeFilter = new ComboBox<>();
+        routeFilter.getItems().add("All Routes");
+        monitoring.getRoutes().forEach(r -> routeFilter.getItems().add(r.routeId() + " – " + r.routeName()));
+        routeFilter.setValue("All Routes");
+        routeFilter.setMaxWidth(320);
+        routeFilter.setPrefHeight(40);
+        styleComboBox(routeFilter);
 
-    Button refreshBtn = modernButton("Refresh Map", GREEN_PRIMARY, 140);
+        Button refreshBtn = modernButton("Refresh Map", GREEN_PRIMARY, 140);
 
-    liveMapWebView = new WebView();
-    liveMapWebView.setPrefSize(1100, 580);
-    liveMapWebView.setMinHeight(500);
+        WebView mapView = new WebView();
+        mapView.setPrefSize(1100, 580);
+        mapView.setMinHeight(500);
 
-    // Enhanced GPS Bridge
-    liveMapWebView.getEngine().getLoadWorker().stateProperty().addListener((obs, old, newState) -> {
-        if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
-            JSObject window = (JSObject) liveMapWebView.getEngine().executeScript("window");
-            window.setMember("javaApp", new GPSBridge());
-            // Force map resize after load
-            liveMapWebView.getEngine().executeScript("setTimeout(() => map.invalidateSize(), 300);");
+        Runnable loadMap = () -> {
+            String filter = routeFilter.getValue();
+            String filterRouteId = "All Routes".equals(filter) ? null : filter.split("–")[0].trim();
+
+            StringBuilder markers = new StringBuilder();
+
+            for (PublicVehicle v : monitoring.getAllVehicles()) {
+                if (!v.hasLocation()) continue;
+                if (filterRouteId != null && !filterRouteId.equalsIgnoreCase(v.routeId())) continue;
+
+                String vehicleType = v instanceof Bus ? "Bus" : v instanceof ModernJeep ? "Modern Jeep" : "Jeepney";
+
+                markers.append(String.format(
+                        """
+                        L.marker([%f, %f])
+                            .addTo(map)
+                            .bindPopup("<b>%s</b><br>Type: %s<br>Plate: %s<br>Route: %s<br>Speed: %.0f km/h<br>Passengers: %d/%d");
+                        """,
+                        v.lat(),
+                        v.lon(),
+                        v.vehicleId(),
+                        vehicleType,
+                        v.plateNumber(),
+                        v.routeId() != null ? v.routeId() : "Unassigned",
+                        v.speedKmh(),
+                        v.passengerCount(),
+                        v.capacity()
+                ));
+            }
+
+            String html = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                    <style>
+                        html, body, #map {
+                            width: 100%%;
+                            height: 100%%;
+                            margin: 0;
+                            padding: 0;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div id="map"></div>
+
+                    <script>
+                        var map = L.map('map').setView([10.3157, 123.8854], 13);
+
+                        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            maxZoom: 19
+                        }).addTo(map);
+
+                        %s
+
+                        setTimeout(function() {
+                            map.invalidateSize();
+                        }, 500);
+                    </script>
+                </body>
+                </html>
+                """.formatted(markers.toString());
+
+            mapView.getEngine().loadContent(html);
+        };
+
+        refreshBtn.setOnAction(e -> loadMap.run());
+        routeFilter.setOnAction(e -> loadMap.run());
+
+        loadMap.run();
+
+        if (mapAutoRefresh != null) mapAutoRefresh.stop();
+        mapAutoRefresh = new Timeline(new KeyFrame(Duration.seconds(4), e -> loadMap.run()));
+        mapAutoRefresh.setCycleCount(Timeline.INDEFINITE);
+        mapAutoRefresh.play();
+
+        HBox controls = new HBox(12, routeFilter, refreshBtn);
+        controls.setAlignment(Pos.CENTER_LEFT);
+
+        VBox card = createModernCard(title, subtitle, controls, mapView);
+        VBox.setVgrow(mapView, Priority.ALWAYS);
+        contentArea.getChildren().add(card);
+    }
+
+    private void drawJavaFXLiveMap() {
+        if (liveMapCanvas == null) return;
+
+        GraphicsContext gc = liveMapCanvas.getGraphicsContext2D();
+        double w = liveMapCanvas.getWidth();
+        double h = liveMapCanvas.getHeight();
+
+        if (cebuMapImage == null) {
+            cebuMapImage = new Image(Objects.requireNonNull(
+                    getClass().getResourceAsStream("/assets/cebu-map.png")
+            ));
         }
-    });
 
-    Runnable loadMap = () -> {
-        String filter = routeFilter.getValue();
+        gc.drawImage(cebuMapImage, 0, 0, w, h);
+
+        gc.setFill(Color.rgb(0, 0, 0, 0.18));
+        gc.fillRect(0, 0, w, h);
+
+        gc.setFill(Color.web("#00C853"));
+        gc.fillOval(w - 155, 24, 10, 10);
+
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("System", FontWeight.BOLD, 14));
+        gc.fillText("LIVE TRACKING", w - 138, 35);
+
+        gc.setFill(Color.web(TEXT_SECONDARY));
+        gc.setFont(Font.font("System", FontWeight.NORMAL, 11));
+        gc.fillText("Last updated: " + java.time.LocalTime.now().withNano(0), w - 185, 55);
+
+        String filter = currentMapRouteFilter == null ? "All Routes" : currentMapRouteFilter.getValue();
         String filterRouteId = "All Routes".equals(filter) ? null : filter.split("–")[0].trim();
 
-        StringBuilder markers = new StringBuilder();
-        StringBuilder polylines = new StringBuilder();
-
-        // === ROUTE POLYLINES ===
         for (Route route : monitoring.getRoutes()) {
             if (filterRouteId != null && !route.routeId().equalsIgnoreCase(filterRouteId)) continue;
-            
+
             List<double[]> path = routePaths.get(route.routeId());
-            if (path != null && path.size() >= 2) {
-                StringBuilder coords = new StringBuilder("[");
-                for (double[] p : path) {
-                    coords.append(String.format("[%f,%f],", p[0], p[1]));
-                }
-                coords.deleteCharAt(coords.length()-1).append("]");
-                polylines.append(String.format(
-                    "L.polyline(%s, {color: '#00C853', weight: 6, opacity: 0.75}).addTo(map);%n", coords));
+            if (path == null || path.size() < 2) continue;
+
+            gc.setStroke(Color.rgb(0, 200, 83, 0.35));
+            gc.setLineWidth(10);
+
+            for (int i = 0; i < path.size() - 1; i++) {
+                double[] p1 = path.get(i);
+                double[] p2 = path.get(i + 1);
+
+                double x1 = lonToX(p1[1], w);
+                double y1 = latToY(p1[0], h);
+                double x2 = lonToX(p2[1], w);
+                double y2 = latToY(p2[0], h);
+
+                gc.strokeLine(x1, y1, x2, y2);
             }
+
+            gc.setStroke(Color.web(GREEN_PRIMARY));
+            gc.setLineWidth(4);
+
+            for (int i = 0; i < path.size() - 1; i++) {
+                double[] p1 = path.get(i);
+                double[] p2 = path.get(i + 1);
+
+                double x1 = lonToX(p1[1], w);
+                double y1 = latToY(p1[0], h);
+                double x2 = lonToX(p2[1], w);
+                double y2 = latToY(p2[0], h);
+
+                gc.strokeLine(x1, y1, x2, y2);
+            }
+
+            double[] first = path.get(0);
+            gc.setFill(Color.web(GREEN_PRIMARY));
+            gc.setFont(Font.font("System", FontWeight.BOLD, 12));
+            gc.fillText(route.routeId(), lonToX(first[1], w) + 8, latToY(first[0], h) - 8);
         }
 
-        // === VEHICLE MARKERS ===
+        double pulse = 6 + (System.currentTimeMillis() % 1000) / 1000.0 * 10;
+
         for (PublicVehicle v : monitoring.getAllVehicles()) {
             if (!v.hasLocation()) continue;
             if (filterRouteId != null && !filterRouteId.equalsIgnoreCase(v.routeId())) continue;
 
-            String emoji = v instanceof Bus ? "🚌" : v instanceof ModernJeep ? "🚎" : "🚐";
-            String color = v instanceof Bus ? "#448AFF" : v instanceof ModernJeep ? "#FF9800" : "#00C853";
+            double x = lonToX(v.lon(), w);
+            double y = latToY(v.lat(), h);
 
-            markers.append(String.format(
-                "L.marker([%f, %f], {" +
-                "icon: L.divIcon({className: 'vehicle-marker', html: `<div style=\"background:%s;width:48px;height:48px;border-radius:50%%;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 4px 12px rgba(0,0,0,0.5);\">%s</div>`, iconSize: [48,48], iconAnchor: [24,24]})" +
-                "})" +
-                ".addTo(map)" +
-                ".bindPopup('<b>%s %s</b><br>Plate: %s<br>Route: %s<br>Speed: %.0f km/h<br>Passengers: %d/%d<br>Updated: just now');%n",
-                v.lat(), v.lon(), color, emoji,
-                emoji, v.vehicleId(), v.plateNumber(),
-                v.routeId() != null ? v.routeId() : "Unassigned",
-                v.speedKmh(), v.passengerCount(), v.capacity()
-            ));
+            String color = v instanceof Bus ? ACCENT_BLUE : v instanceof ModernJeep ? ACCENT_ORANGE : GREEN_PRIMARY;
+            String icon = v instanceof Bus ? "B" : v instanceof ModernJeep ? "MJ" : "J";
+
+            gc.setStroke(Color.rgb(0, 200, 83, 0.35));
+            gc.setLineWidth(3);
+            gc.strokeOval(x - 24 - pulse / 2, y - 24 - pulse / 2, 48 + pulse, 48 + pulse);
+
+            gc.setFill(Color.web(color));
+            gc.fillOval(x - 22, y - 22, 44, 44);
+
+            gc.setStroke(Color.WHITE);
+            gc.setLineWidth(3);
+            gc.strokeOval(x - 22, y - 22, 44, 44);
+
+            gc.setFill(Color.WHITE);
+            gc.setFont(Font.font("System", FontWeight.BOLD, 12));
+            gc.fillText(icon, x - 10, y + 4);
+
+            gc.setFill(Color.WHITE);
+            gc.setFont(Font.font("System", FontWeight.BOLD, 11));
+            gc.fillText(v.vehicleId(), x + 28, y - 6);
+
+            gc.setFill(Color.web(TEXT_SECONDARY));
+            gc.setFont(Font.font("System", FontWeight.NORMAL, 10));
+            gc.fillText(String.format("%.0f km/h | %d/%d pax",
+                    v.speedKmh(),
+                    v.passengerCount(),
+                    v.capacity()
+            ), x + 28, y + 9);
         }
+    }
 
-        // Add showcase vehicle at exact location you requested
-        markers.append(String.format(
-            "L.marker([10.32925, 123.90744], {" +
-            "icon: L.divIcon({html: `<div style=\"background:#FF9800;width:52px;height:52px;border-radius:50%%;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 0 0 4px rgba(255,152,0,0.3);\">🚎</div>`, iconSize: [52,52], iconAnchor: [26,26]})" +
-            "})" +
-            ".addTo(map)" +
-            ".bindPopup('<b>🚎 V-SHOWCASE (Demo)</b><br>IT Park - Qualfon Building<br>Modern Jeepney<br>Status: <span style=\"color:#00C853\">ONLINE</span>');%n"
-        ));
+    private double latToY(double lat, double height) {
+        double minLat = 10.2850;
+        double maxLat = 10.3750;
+        return height - ((lat - minLat) / (maxLat - minLat)) * height;
+    }
 
-        String html = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-                <style>
-                    html, body, #map { width:100%%; height:100%%; margin:0; padding:0; }
-                    .vehicle-marker { background: transparent; border: none; }
-                </style>
-            </head>
-            <body>
-                <div id="map"></div>
-                <script>
-                    var map = L.map('map', {zoomControl: true, attributionControl: false})
-                              .setView([10.3157, 123.8854], 13);
-                    
-                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                        subdomains: 'abcd',
-                        maxZoom: 19
-                    }).addTo(map);
+    private double lonToX(double lon, double width) {
+        double minLon = 123.8700;
+        double maxLon = 123.9300;
+        return ((lon - minLon) / (maxLon - minLon)) * width;
+    }
 
-                    %s
-                    %s
-
-                    // Auto refresh simulation dot
-                    setTimeout(() => map.invalidateSize(), 500);
-                </script>
-            </body>
-            </html>
-            """.formatted(polylines.toString(), markers.toString());
-
-        liveMapWebView.getEngine().loadContent(html);
-    };
-
-    // Event handlers
-    refreshBtn.setOnAction(e -> loadMap.run());
-    routeFilter.setOnAction(e -> loadMap.run());
-    gpsToggle.setOnAction(e -> {
-        isRealGPSMode = gpsToggle.isSelected();
-        addActivityLog(isRealGPSMode ? "Real GPS Mode ENABLED" : "Real GPS Mode DISABLED");
-        loadMap.run();
-    });
-
-    loadMap.run();
-
-    // Auto refresh every 4 seconds
-    if (mapAutoRefresh != null) mapAutoRefresh.stop();
-    mapAutoRefresh = new Timeline(new KeyFrame(Duration.seconds(4), e -> loadMap.run()));
-    mapAutoRefresh.setCycleCount(Timeline.INDEFINITE);
-    mapAutoRefresh.play();
-
-    HBox controls = new HBox(12, routeFilter, refreshBtn, gpsToggle);
-    controls.setAlignment(Pos.CENTER_LEFT);
-
-    VBox card = createModernCard(title, subtitle, controls, liveMapWebView);
-    VBox.setVgrow(liveMapWebView, Priority.ALWAYS);
-    contentArea.getChildren().add(card);
-}
 
     private void refreshLiveMap() {
-        if (liveMapWebView != null) showLiveMapPanel();
+        if (liveMapCanvas != null) {
+            drawJavaFXLiveMap();
+        }
     }
 
     private void showGPSTrackingPanel() {
@@ -774,7 +872,7 @@ public class MainFX extends Application {
             modeStatus.setText(isRealGPSMode ? "● GPS Tracking is ACTIVE" : "○ GPS Tracking is INACTIVE");
             modeStatus.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: " + (isRealGPSMode ? GREEN_PRIMARY : TEXT_SECONDARY) + ";");
             addActivityLog(isRealGPSMode ? "Enabled real GPS tracking" : "Disabled real GPS tracking");
-            if (liveMapWebView != null) refreshLiveMap();
+            if (liveMapCanvas != null) refreshLiveMap();
         });
 
         Label instruction = new Label("When enabled, your device's GPS will be used to track the showcase vehicle (V-SHOWCASE) in real-time.\n\nMake sure to allow location permissions when prompted.");
@@ -1580,7 +1678,7 @@ public class MainFX extends Application {
             vehicleRouteIndexes.put(vehicle.vehicleId(), currentIndex);
         }
         DataStore.saveAll(auth, monitoring, savedUsers);
-        if (liveMapWebView != null) refreshLiveMap();
+        if (liveMapCanvas != null) refreshLiveMap();
     }
 
     private void seedData() {
