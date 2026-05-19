@@ -20,17 +20,25 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.web.WebView;
+
 import javafx.stage.Stage;
 import javafx.util.Duration;
-
-import netscape.javascript.JSObject;
+import javafx.scene.image.Image;
+import java.util.Objects;
 
 import java.io.InputStream;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.shape.Line;
+
+import javafx.scene.web.WebView;
+import javafx.animation.Timeline;
+import javafx.animation.KeyFrame;
+import javafx.util.Duration;
 
 public class MainFX extends Application {
 
@@ -62,39 +70,41 @@ public class MainFX extends Application {
     private Timeline liveSimulation;
     private Timeline mapAutoRefresh;
     private Stage mainStage;
-    private WebView liveMapWebView;
+    private Canvas liveMapCanvas;
+    private Image cebuMapImage;
+    private ComboBox<String> currentMapRouteFilter;
     private boolean isRealGPSMode = false;
 
     private BorderPane dashboardRoot;
     private VBox sidebar;
     private VBox contentArea;
-    private Label headerTitle;
+    private javafx.scene.control.Label headerTitle;
 
     private final Map<String, Integer> vehicleRouteIndexes = new HashMap<>();
     private final Map<String, List<double[]>> routePaths = new HashMap<>();
 
-    // GPS Bridge for real device tracking
+    // GPS Bridge
     public class GPSBridge {
-        public void receiveGPS(double lat, double lng, double accuracy, double speed) {
-            Platform.runLater(() -> {
-                if (currentUser instanceof Operator && isRealGPSMode) {
-                    PublicVehicle showcase = monitoring.findVehicleById("V-SHOWCASE");
-                    if (showcase != null) {
-                        VehiclePing ping = new VehiclePing(
-                            "V-SHOWCASE", 
-                            Instant.now(), 
-                            lat, lng, 
-                            speed > 5 ? speed : 18 + random.nextInt(25), 
-                            8 + random.nextInt(15)
-                        );
-                        monitoring.receivePing(ping);
-                        addActivityLog("📍 Real GPS: " + String.format("%.5f, %.5f", lat, lng));
-                        refreshLiveMap();
-                    }
+    public void receiveGPS(double lat, double lng, double accuracy, double speed) {
+        Platform.runLater(() -> {
+            if (currentUser instanceof Operator && isRealGPSMode) {
+                PublicVehicle showcase = monitoring.findVehicleById("V-SHOWCASE");
+                if (showcase != null) {
+                    VehiclePing ping = new VehiclePing(
+                        "V-SHOWCASE", 
+                        Instant.now(), 
+                        lat, lng, 
+                        speed > 5 ? speed : 18 + random.nextInt(25), 
+                        8 + random.nextInt(15)
+                    );
+                    monitoring.receivePing(ping);
+                    addActivityLog("📍 Real GPS: " + String.format("%.5f, %.5f", lat, lng));
+                    refreshLiveMap();
                 }
-            });
-        }
+            }
+        });
     }
+}
 
     @Override
     public void start(Stage stage) {
@@ -166,19 +176,20 @@ public class MainFX extends Application {
     }
 
     private void addShowcaseVehicle() {
-        if (!monitoring.vehicleExists("V-SHOWCASE")) {
-            PublicVehicle showcase = new ModernJeep("V-SHOWCASE", "SAKAY-001", 25);
-            monitoring.registerVehicle(showcase);
-            monitoring.assignVehicleToRoute("V-SHOWCASE", "R-04L");
-            
-            monitoring.receivePing(new VehiclePing(
-                "V-SHOWCASE", 
-                Instant.now(), 
-                10.32925, 123.90744,
-                15, 12
-            ));
-        }
+    if (!monitoring.vehicleExists("V-SHOWCASE")) {
+        PublicVehicle showcase = new ModernJeep("V-SHOWCASE", "SAKAY-001", 25);
+        monitoring.registerVehicle(showcase);
+        monitoring.assignVehicleToRoute("V-SHOWCASE", "R-04L");
+        
+        // Your requested location
+        monitoring.receivePing(new VehiclePing(
+            "V-SHOWCASE", 
+            Instant.now(), 
+            10.32925, 123.90744,  // IT Park - Qualfon area
+            15, 12
+        ));
     }
+}
 
     private void ensureDefaultAccounts() {
         if (!auth.usernameExists("operator")) {
@@ -237,7 +248,7 @@ public class MainFX extends Application {
         gpsModeToggle.setOnAction(e -> {
             isRealGPSMode = gpsModeToggle.isSelected();
             addActivityLog(isRealGPSMode ? "Real GPS tracking enabled" : "Real GPS tracking disabled");
-            if (liveMapWebView != null) refreshLiveMap();
+            if (liveMapCanvas != null) refreshLiveMap();
         });
 
         registerBtn.setOnAction(e -> showRegisterScreen());
@@ -403,7 +414,7 @@ public class MainFX extends Application {
         avatarInit.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: white;");
         StackPane avatarPane = new StackPane(avatar, avatarInit);
 
-        Region spacer = new Region();
+        javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         HBox headerContent = new HBox(16, logo, roleBadge, spacer, headerTitle, statusBox, avatarPane);
@@ -551,7 +562,7 @@ public class MainFX extends Application {
         typeLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + GREEN_PRIMARY + ";");
         infoBox.getChildren().addAll(idLabel, typeLabel);
         
-        Region spacer = new Region();
+        javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         
         String status = monitoring.getVehicleStatus(v);
@@ -599,8 +610,8 @@ public class MainFX extends Application {
 
         Label title = new Label("Live Vehicle Map");
         title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: " + TEXT_PRIMARY + ";");
-        
-        Label subtitle = new Label("Real-time tracking • Cebu City");
+
+        Label subtitle = new Label("Embedded live map • Cebu City");
         subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: " + TEXT_SECONDARY + ";");
 
         ComboBox<String> routeFilter = new ComboBox<>();
@@ -611,116 +622,83 @@ public class MainFX extends Application {
         routeFilter.setPrefHeight(40);
         styleComboBox(routeFilter);
 
-        ToggleButton gpsToggle = new ToggleButton("📍 Real GPS Mode");
-        gpsToggle.setStyle("-fx-background-color: " + CARD_BG + "; -fx-text-fill: " + TEXT_SECONDARY + "; -fx-background-radius: 20; -fx-padding: 8 16;");
-        gpsToggle.setSelected(isRealGPSMode);
-
         Button refreshBtn = modernButton("Refresh Map", GREEN_PRIMARY, 140);
 
-        liveMapWebView = new WebView();
-        liveMapWebView.setPrefSize(1100, 580);
-        liveMapWebView.setMinHeight(500);
-
-        liveMapWebView.getEngine().getLoadWorker().stateProperty().addListener((obs, old, newState) -> {
-            if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
-                JSObject window = (JSObject) liveMapWebView.getEngine().executeScript("window");
-                window.setMember("javaApp", new GPSBridge());
-                liveMapWebView.getEngine().executeScript("setTimeout(() => map.invalidateSize(), 300);");
-            }
-        });
+        WebView mapView = new WebView();
+        mapView.setPrefSize(1100, 580);
+        mapView.setMinHeight(500);
 
         Runnable loadMap = () -> {
             String filter = routeFilter.getValue();
             String filterRouteId = "All Routes".equals(filter) ? null : filter.split("–")[0].trim();
 
             StringBuilder markers = new StringBuilder();
-            StringBuilder polylines = new StringBuilder();
-
-            for (Route route : monitoring.getRoutes()) {
-                if (filterRouteId != null && !route.routeId().equalsIgnoreCase(filterRouteId)) continue;
-                
-                List<double[]> path = routePaths.get(route.routeId());
-                if (path != null && path.size() >= 2) {
-                    StringBuilder coords = new StringBuilder("[");
-                    for (double[] p : path) {
-                        coords.append(String.format("[%f,%f],", p[0], p[1]));
-                    }
-                    coords.deleteCharAt(coords.length()-1).append("]");
-                    polylines.append(String.format(
-                        "L.polyline(%s, {color: '#00C853', weight: 6, opacity: 0.75}).addTo(map);%n", coords));
-                }
-            }
 
             for (PublicVehicle v : monitoring.getAllVehicles()) {
                 if (!v.hasLocation()) continue;
                 if (filterRouteId != null && !filterRouteId.equalsIgnoreCase(v.routeId())) continue;
 
-                String emoji = v instanceof Bus ? "🚌" : v instanceof ModernJeep ? "🚎" : "🚐";
-                String color = v instanceof Bus ? "#448AFF" : v instanceof ModernJeep ? "#FF9800" : "#00C853";
+                String vehicleType = v instanceof Bus ? "Bus" : v instanceof ModernJeep ? "Modern Jeep" : "Jeepney";
 
                 markers.append(String.format(
-                    "L.marker([%f, %f], {" +
-                    "icon: L.divIcon({className: 'vehicle-marker', html: `<div style=\"background:%s;width:48px;height:48px;border-radius:50%%;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 4px 12px rgba(0,0,0,0.5);\">%s</div>`, iconSize: [48,48], iconAnchor: [24,24]})" +
-                    "})" +
-                    ".addTo(map)" +
-                    ".bindPopup('<b>%s %s</b><br>Plate: %s<br>Route: %s<br>Speed: %.0f km/h<br>Passengers: %d/%d<br>Updated: just now');%n",
-                    v.lat(), v.lon(), color, emoji,
-                    emoji, v.vehicleId(), v.plateNumber(),
-                    v.routeId() != null ? v.routeId() : "Unassigned",
-                    v.speedKmh(), v.passengerCount(), v.capacity()
+                        """
+                        L.marker([%f, %f])
+                            .addTo(map)
+                            .bindPopup("<b>%s</b><br>Type: %s<br>Plate: %s<br>Route: %s<br>Speed: %.0f km/h<br>Passengers: %d/%d");
+                        """,
+                        v.lat(),
+                        v.lon(),
+                        v.vehicleId(),
+                        vehicleType,
+                        v.plateNumber(),
+                        v.routeId() != null ? v.routeId() : "Unassigned",
+                        v.speedKmh(),
+                        v.passengerCount(),
+                        v.capacity()
                 ));
             }
 
-            markers.append(String.format(
-                "L.marker([10.32925, 123.90744], {" +
-                "icon: L.divIcon({html: `<div style=\"background:#FF9800;width:52px;height:52px;border-radius:50%%;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 0 0 4px rgba(255,152,0,0.3);\">🚎</div>`, iconSize: [52,52], iconAnchor: [26,26]})" +
-                "})" +
-                ".addTo(map)" +
-                ".bindPopup('<b>🚎 V-SHOWCASE (Demo)</b><br>IT Park - Qualfon Building<br>Modern Jeepney<br>Status: <span style=\"color:#00C853\">ONLINE</span>');%n"
-            ));
-
             String html = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-                <style>
-                    html, body, #map { width:100%%; height:100%%; margin:0; padding:0; }
-                    .vehicle-marker { background: transparent; border: none; }
-                </style>
-            </head>
-            <body>
-                <div id="map"></div>
-                <script>
-                    var map = L.map('map', {zoomControl: true, attributionControl: false})
-                              .setView([10.3157, 123.8854], 13);
-                    
-                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                        subdomains: 'abcd',
-                        maxZoom: 19
-                    }).addTo(map);
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                    <style>
+                        html, body, #map {
+                            width: 100%%;
+                            height: 100%%;
+                            margin: 0;
+                            padding: 0;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div id="map"></div>
 
-                    %s
-                    %s
+                    <script>
+                        var map = L.map('map').setView([10.3157, 123.8854], 13);
 
-                    setTimeout(() => map.invalidateSize(), 500);
-                </script>
-            </body>
-            </html>
-            """.formatted(polylines.toString(), markers.toString());
+                        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            maxZoom: 19
+                        }).addTo(map);
 
-            liveMapWebView.getEngine().loadContent(html);
+                        %s
+
+                        setTimeout(function() {
+                            map.invalidateSize();
+                        }, 500);
+                    </script>
+                </body>
+                </html>
+                """.formatted(markers.toString());
+
+            mapView.getEngine().loadContent(html);
         };
 
         refreshBtn.setOnAction(e -> loadMap.run());
         routeFilter.setOnAction(e -> loadMap.run());
-        gpsToggle.setOnAction(e -> {
-            isRealGPSMode = gpsToggle.isSelected();
-            addActivityLog(isRealGPSMode ? "Real GPS Mode ENABLED" : "Real GPS Mode DISABLED");
-            loadMap.run();
-        });
 
         loadMap.run();
 
@@ -729,16 +707,146 @@ public class MainFX extends Application {
         mapAutoRefresh.setCycleCount(Timeline.INDEFINITE);
         mapAutoRefresh.play();
 
-        HBox controls = new HBox(12, routeFilter, refreshBtn, gpsToggle);
+        HBox controls = new HBox(12, routeFilter, refreshBtn);
         controls.setAlignment(Pos.CENTER_LEFT);
 
-        VBox card = createModernCard(title, subtitle, controls, liveMapWebView);
-        VBox.setVgrow(liveMapWebView, Priority.ALWAYS);
+        VBox card = createModernCard(title, subtitle, controls, mapView);
+        VBox.setVgrow(mapView, Priority.ALWAYS);
         contentArea.getChildren().add(card);
     }
 
+    private void drawJavaFXLiveMap() {
+        if (liveMapCanvas == null) return;
+
+        GraphicsContext gc = liveMapCanvas.getGraphicsContext2D();
+        double w = liveMapCanvas.getWidth();
+        double h = liveMapCanvas.getHeight();
+
+        if (cebuMapImage == null) {
+            cebuMapImage = new Image(Objects.requireNonNull(
+                    getClass().getResourceAsStream("/assets/cebu-map.png")
+            ));
+        }
+
+        gc.drawImage(cebuMapImage, 0, 0, w, h);
+
+        gc.setFill(Color.rgb(0, 0, 0, 0.18));
+        gc.fillRect(0, 0, w, h);
+
+        gc.setFill(Color.web("#00C853"));
+        gc.fillOval(w - 155, 24, 10, 10);
+
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("System", FontWeight.BOLD, 14));
+        gc.fillText("LIVE TRACKING", w - 138, 35);
+
+        gc.setFill(Color.web(TEXT_SECONDARY));
+        gc.setFont(Font.font("System", FontWeight.NORMAL, 11));
+        gc.fillText("Last updated: " + java.time.LocalTime.now().withNano(0), w - 185, 55);
+
+        String filter = currentMapRouteFilter == null ? "All Routes" : currentMapRouteFilter.getValue();
+        String filterRouteId = "All Routes".equals(filter) ? null : filter.split("–")[0].trim();
+
+        for (Route route : monitoring.getRoutes()) {
+            if (filterRouteId != null && !route.routeId().equalsIgnoreCase(filterRouteId)) continue;
+
+            List<double[]> path = routePaths.get(route.routeId());
+            if (path == null || path.size() < 2) continue;
+
+            gc.setStroke(Color.rgb(0, 200, 83, 0.35));
+            gc.setLineWidth(10);
+
+            for (int i = 0; i < path.size() - 1; i++) {
+                double[] p1 = path.get(i);
+                double[] p2 = path.get(i + 1);
+
+                double x1 = lonToX(p1[1], w);
+                double y1 = latToY(p1[0], h);
+                double x2 = lonToX(p2[1], w);
+                double y2 = latToY(p2[0], h);
+
+                gc.strokeLine(x1, y1, x2, y2);
+            }
+
+            gc.setStroke(Color.web(GREEN_PRIMARY));
+            gc.setLineWidth(4);
+
+            for (int i = 0; i < path.size() - 1; i++) {
+                double[] p1 = path.get(i);
+                double[] p2 = path.get(i + 1);
+
+                double x1 = lonToX(p1[1], w);
+                double y1 = latToY(p1[0], h);
+                double x2 = lonToX(p2[1], w);
+                double y2 = latToY(p2[0], h);
+
+                gc.strokeLine(x1, y1, x2, y2);
+            }
+
+            double[] first = path.get(0);
+            gc.setFill(Color.web(GREEN_PRIMARY));
+            gc.setFont(Font.font("System", FontWeight.BOLD, 12));
+            gc.fillText(route.routeId(), lonToX(first[1], w) + 8, latToY(first[0], h) - 8);
+        }
+
+        double pulse = 6 + (System.currentTimeMillis() % 1000) / 1000.0 * 10;
+
+        for (PublicVehicle v : monitoring.getAllVehicles()) {
+            if (!v.hasLocation()) continue;
+            if (filterRouteId != null && !filterRouteId.equalsIgnoreCase(v.routeId())) continue;
+
+            double x = lonToX(v.lon(), w);
+            double y = latToY(v.lat(), h);
+
+            String color = v instanceof Bus ? ACCENT_BLUE : v instanceof ModernJeep ? ACCENT_ORANGE : GREEN_PRIMARY;
+            String icon = v instanceof Bus ? "B" : v instanceof ModernJeep ? "MJ" : "J";
+
+            gc.setStroke(Color.rgb(0, 200, 83, 0.35));
+            gc.setLineWidth(3);
+            gc.strokeOval(x - 24 - pulse / 2, y - 24 - pulse / 2, 48 + pulse, 48 + pulse);
+
+            gc.setFill(Color.web(color));
+            gc.fillOval(x - 22, y - 22, 44, 44);
+
+            gc.setStroke(Color.WHITE);
+            gc.setLineWidth(3);
+            gc.strokeOval(x - 22, y - 22, 44, 44);
+
+            gc.setFill(Color.WHITE);
+            gc.setFont(Font.font("System", FontWeight.BOLD, 12));
+            gc.fillText(icon, x - 10, y + 4);
+
+            gc.setFill(Color.WHITE);
+            gc.setFont(Font.font("System", FontWeight.BOLD, 11));
+            gc.fillText(v.vehicleId(), x + 28, y - 6);
+
+            gc.setFill(Color.web(TEXT_SECONDARY));
+            gc.setFont(Font.font("System", FontWeight.NORMAL, 10));
+            gc.fillText(String.format("%.0f km/h | %d/%d pax",
+                    v.speedKmh(),
+                    v.passengerCount(),
+                    v.capacity()
+            ), x + 28, y + 9);
+        }
+    }
+
+    private double latToY(double lat, double height) {
+        double minLat = 10.2850;
+        double maxLat = 10.3750;
+        return height - ((lat - minLat) / (maxLat - minLat)) * height;
+    }
+
+    private double lonToX(double lon, double width) {
+        double minLon = 123.8700;
+        double maxLon = 123.9300;
+        return ((lon - minLon) / (maxLon - minLon)) * width;
+    }
+
+
     private void refreshLiveMap() {
-        if (liveMapWebView != null) showLiveMapPanel();
+        if (liveMapCanvas != null) {
+            drawJavaFXLiveMap();
+        }
     }
 
     private void showGPSTrackingPanel() {
@@ -764,7 +872,7 @@ public class MainFX extends Application {
             modeStatus.setText(isRealGPSMode ? "● GPS Tracking is ACTIVE" : "○ GPS Tracking is INACTIVE");
             modeStatus.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: " + (isRealGPSMode ? GREEN_PRIMARY : TEXT_SECONDARY) + ";");
             addActivityLog(isRealGPSMode ? "Enabled real GPS tracking" : "Disabled real GPS tracking");
-            if (liveMapWebView != null) refreshLiveMap();
+            if (liveMapCanvas != null) refreshLiveMap();
         });
 
         Label instruction = new Label("When enabled, your device's GPS will be used to track the showcase vehicle (V-SHOWCASE) in real-time.\n\nMake sure to allow location permissions when prompted.");
@@ -1117,9 +1225,9 @@ public class MainFX extends Application {
         Label message = new Label();
         Button addBtn = modernButton("Add", GREEN_PRIMARY, 160);
 
-        Node[] routeFields = {routeIdField, routeNameField};
-        Node[] stopFields = {routeBoxStop, stopIdField, stopNameField, latField, lonField};
-        Node[] vehicleFields = {vehicleTypeBox, vehicleIdField, plateField, capacityField};
+        javafx.scene.Node[] routeFields = {routeIdField, routeNameField};
+        javafx.scene.Node[] stopFields = {routeBoxStop, stopIdField, stopNameField, latField, lonField};
+        javafx.scene.Node[] vehicleFields = {vehicleTypeBox, vehicleIdField, plateField, capacityField};
 
         hideNodes(routeFields); hideNodes(stopFields); hideNodes(vehicleFields);
 
@@ -1563,14 +1671,14 @@ public class MainFX extends Application {
             int currentIndex = vehicleRouteIndexes.getOrDefault(vehicle.vehicleId(), 0);
             double[] point = path.get(currentIndex);
             
-            monitoring.receivePing(new VehiclePing(vehicle.vehicleId(), Instant.now(), point[0], point[1], 20 + random.nextDouble() * 30, 5 + random.nextInt(Math.max(1, vehicle.capacity() - 2))));
+            monitoring.receivePing(new VehiclePing(vehicle.vehicleId(), Instant.now(), point[0], point[1], 20 + random.nextDouble() * 30, 5 + random.nextInt(vehicle.capacity() - 2)));
             
             currentIndex++;
             if (currentIndex >= path.size()) currentIndex = 0;
             vehicleRouteIndexes.put(vehicle.vehicleId(), currentIndex);
         }
         DataStore.saveAll(auth, monitoring, savedUsers);
-        if (liveMapWebView != null) refreshLiveMap();
+        if (liveMapCanvas != null) refreshLiveMap();
     }
 
     private void seedData() {
@@ -1651,7 +1759,7 @@ public class MainFX extends Application {
     }
 
     private void addLogoutButton() {
-        Region spacer = new Region();
+        javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
         Button logout = new Button("Log Out");
@@ -1668,41 +1776,45 @@ public class MainFX extends Application {
     }
 
     // UI Component Factories
-    private ImageView loadLogo() {
-        InputStream stream = getClass().getResourceAsStream("assets/logo.jpg");
-        
-        if (stream == null) {
-            stream = getClass().getResourceAsStream("/assets/logo.jpg");
-        }
-        if (stream == null) {
-            stream = getClass().getResourceAsStream("assets/logo.png");
-        }
-        if (stream == null) {
-            stream = getClass().getResourceAsStream("/assets/logo.png");
-        }
-
-        if (stream == null) {
-            System.out.println("Logo not found - using fallback");
-            return new ImageView();
-        }
-
-        Image logo = new Image(stream, 90, 90, true, true);
-        ImageView logoView = new ImageView(logo);
-        
-        logoView.setFitWidth(90);
-        logoView.setFitHeight(90);
-        logoView.setPreserveRatio(true);
-
-        Circle clip = new Circle(45, 45, 45);
-        logoView.setClip(clip);
-
-        DropShadow shadow = new DropShadow();
-        shadow.setRadius(8);
-        shadow.setColor(Color.rgb(0, 0, 0, 0.4));
-        logoView.setEffect(shadow);
-
-        return logoView;
+    // UI Component Factories
+private ImageView loadLogo() {
+    // Try multiple possible image formats
+    InputStream stream = getClass().getResourceAsStream("/assets/logo.jpeg");
+    
+    if (stream == null) {
+        stream = getClass().getResourceAsStream("/assets/logo.png");
     }
+    if (stream == null) {
+        stream = getClass().getResourceAsStream("/assets/logo.jpg");
+    }
+    if (stream == null) {
+        stream = getClass().getResourceAsStream("/assets/logo.gif");
+    }
+
+    if (stream == null) {
+        System.out.println("❌ Logo not found! Please check if the image is in: src/assets/logo.jpeg");
+        return new ImageView(); // fallback empty image
+    }
+
+    Image logo = new Image(stream, 90, 90, true, true); // smoother scaling
+    ImageView logoView = new ImageView(logo);
+    
+    logoView.setFitWidth(90);
+    logoView.setFitHeight(90);
+    logoView.setPreserveRatio(true);
+
+    // Make it circular (nice look)
+    Circle clip = new Circle(45, 45, 45);
+    logoView.setClip(clip);
+
+    // Optional: Add subtle shadow
+    DropShadow shadow = new DropShadow();
+    shadow.setRadius(8);
+    shadow.setColor(Color.rgb(0, 0, 0, 0.4));
+    logoView.setEffect(shadow);
+
+    return logoView;
+}
 
     private TextField styledInput(String prompt, double maxWidth) {
         TextField field = new TextField();
@@ -1726,7 +1838,7 @@ public class MainFX extends Application {
         Button btn = new Button(text);
         btn.setPrefHeight(46);
         btn.setMinWidth(minWidth);
-        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 12; -fx-cursor: hand;");
+        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 12;");
         btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: " + (color.equals(GREEN_PRIMARY) ? GREEN_DARK : color) + "; -fx-text-fill: white;"));
         btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white;"));
         return btn;
@@ -1736,11 +1848,11 @@ public class MainFX extends Application {
         Button btn = new Button(text);
         btn.setPrefHeight(46);
         btn.setMinWidth(minWidth);
-        btn.setStyle("-fx-background-color: transparent; -fx-text-fill: " + TEXT_SECONDARY + "; -fx-font-weight: bold; -fx-border-color: " + BORDER_COLOR + "; -fx-border-radius: 12; -fx-cursor: hand;");
+        btn.setStyle("-fx-background-color: transparent; -fx-text-fill: " + TEXT_SECONDARY + "; -fx-font-weight: bold; -fx-border-color: " + BORDER_COLOR + "; -fx-border-radius: 12;");
         return btn;
     }
 
-    private VBox createModernCard(Node... nodes) {
+    private VBox createModernCard(javafx.scene.Node... nodes) {
         VBox box = new VBox(16);
         box.getChildren().addAll(nodes);
         box.setPadding(new Insets(24));
@@ -1748,17 +1860,16 @@ public class MainFX extends Application {
         return box;
     }
 
-    private Region separator() {
-        Region r = new Region();
-        r.setPrefHeight(1);
-        r.setStyle("-fx-background-color: " + BORDER_COLOR + ";");
-        return r;
-    }
+    private javafx.scene.layout.Region separator() {
+    javafx.scene.layout.Region r = new javafx.scene.layout.Region();
+    r.setPrefHeight(1);
+    r.setStyle("-fx-background-color: " + BORDER_COLOR + ";");
+    return r;
+}
 
-    private void styleTable(TableView<?> table) {
-        table.setStyle("-fx-background-color: " + CARD_BG + "; -fx-control-inner-background: " + CARD_BG + "; -fx-border-color: " + BORDER_COLOR + ";");
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-    }
+    private void styleTable(TableView table) {
+    table.setStyle("-fx-background-color: " + CARD_BG + "; -fx-control-inner-background: " + CARD_BG + "; -fx-border-color: " + BORDER_COLOR + ";");
+}
 
     private <T> void styleComboBox(ComboBox<T> cb) {
         cb.setStyle(inputCss());
@@ -1769,44 +1880,36 @@ public class MainFX extends Application {
                 setText(empty || item == null ? cb.getPromptText() : item.toString());
             }
         });
-        cb.setCellFactory(lv -> new ListCell<T>() {
-            @Override
-            protected void updateItem(T item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.toString());
-                setStyle("-fx-text-fill:" + TEXT_PRIMARY + ";-fx-background-color:" + CARD_HOVER + ";");
-            }
-        });
     }
 
     private String inputCss() {
-        return "-fx-background-color: " + CARD_HOVER + "; -fx-text-fill: " + TEXT_PRIMARY + "; -fx-prompt-text-fill: " + TEXT_MUTED + "; -fx-background-radius: 12; -fx-border-color: " + BORDER_COLOR + "; -fx-border-radius: 12; -fx-font-size: 13px;";
+        return "-fx-background-color: " + CARD_HOVER + "; -fx-text-fill: " + TEXT_PRIMARY + "; -fx-prompt-text-fill: " + TEXT_MUTED + "; -fx-background-radius: 12; -fx-border-color: " + BORDER_COLOR + ";";
     }
 
     private String textAreaCss() {
-        return "-fx-control-inner-background: " + CARD_HOVER + "; -fx-text-fill: " + TEXT_PRIMARY + "; -fx-border-color: " + BORDER_COLOR + "; -fx-border-radius: 12; -fx-background-radius: 12;";
+        return "-fx-control-inner-background: " + CARD_HOVER + "; -fx-text-fill: " + TEXT_PRIMARY + "; -fx-border-color: " + BORDER_COLOR + ";";
     }
 
     private String cardStyle() {
-        return "-fx-background-color: " + CARD_BG + "; -fx-background-radius: 24; -fx-border-color: " + BORDER_COLOR + "; -fx-border-radius: 24; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 40, 0, 0, 12);";
+        return "-fx-background-color: " + CARD_BG + "; -fx-background-radius: 24; -fx-border-color: " + BORDER_COLOR + "; -fx-border-radius: 24;";
     }
 
     private void showSuccess(Label label, String text) {
-        label.setStyle("-fx-text-fill: " + GREEN_PRIMARY + "; -fx-font-weight: bold; -fx-font-size: 13px;");
+        label.setStyle("-fx-text-fill: " + GREEN_PRIMARY + ";");
         label.setText(text);
     }
 
     private void showError(Label label, String text) {
-        label.setStyle("-fx-text-fill: " + ACCENT_RED + "; -fx-font-weight: bold; -fx-font-size: 13px;");
+        label.setStyle("-fx-text-fill: " + ACCENT_RED + ";");
         label.setText(text);
     }
 
-    private void hideNodes(Node... nodes) {
-        for (Node n : nodes) { n.setVisible(false); n.setManaged(false); }
+    private void hideNodes(javafx.scene.Node... nodes) {
+        for (javafx.scene.Node n : nodes) { n.setVisible(false); n.setManaged(false); }
     }
 
-    private void showNodes(Node... nodes) {
-        for (Node n : nodes) { n.setVisible(true); n.setManaged(true); }
+    private void showNodes(javafx.scene.Node... nodes) {
+        for (javafx.scene.Node n : nodes) { n.setVisible(true); n.setManaged(true); }
     }
 
     private void addActivityLog(String action) {
@@ -1814,7 +1917,7 @@ public class MainFX extends Application {
         activityLogs.add("[" + timeFormatter.format(Instant.now()) + "] " + user + " – " + action);
     }
 
-    private void fadeIn(Node node) {
+    private void fadeIn(javafx.scene.Node node) {
         FadeTransition ft = new FadeTransition(Duration.millis(400), node);
         ft.setFromValue(0);
         ft.setToValue(1);
